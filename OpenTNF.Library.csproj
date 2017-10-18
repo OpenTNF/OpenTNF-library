@@ -1,0 +1,189 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{EBD22A99-93A2-44ED-9B10-08F618626038}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>OpenTNF.Library</RootNamespace>
+    <AssemblyName>OpenTNF.Library</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <OldToolsVersion>3.5</OldToolsVersion>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>..\..\internal references\</OutputPath>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisLogFile>bin\x86\Debug\GeoPackage.Library.dll.CodeAnalysisLog.xml</CodeAnalysisLogFile>
+    <CodeAnalysisUseTypeNameInSuppression>true</CodeAnalysisUseTypeNameInSuppression>
+    <CodeAnalysisModuleSuppressionsFile>GlobalSuppressions.cs</CodeAnalysisModuleSuppressionsFile>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSetDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\\Rule Sets</CodeAnalysisRuleSetDirectories>
+    <CodeAnalysisIgnoreBuiltInRuleSets>true</CodeAnalysisIgnoreBuiltInRuleSets>
+    <CodeAnalysisRuleDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules</CodeAnalysisRuleDirectories>
+    <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <OutputPath>..\..\internal references\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisLogFile>bin\x86\Release\GeoPackage.Library.dll.CodeAnalysisLog.xml</CodeAnalysisLogFile>
+    <CodeAnalysisUseTypeNameInSuppression>true</CodeAnalysisUseTypeNameInSuppression>
+    <CodeAnalysisModuleSuppressionsFile>GlobalSuppressions.cs</CodeAnalysisModuleSuppressionsFile>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSetDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\\Rule Sets</CodeAnalysisRuleSetDirectories>
+    <CodeAnalysisRuleDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules</CodeAnalysisRuleDirectories>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.SQLite, Version=1.0.94.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL">
+      <HintPath>..\..\external references\SQLite\System.Data.SQLite.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Extensions.cs" />
+    <Compile Include="GeoPackageFileValidator.cs" />
+    <Compile Include="Model\GpkgContents.cs" />
+    <Compile Include="Model\GpkgDataColumns.cs" />
+    <Compile Include="Model\GpkgExtensions.cs" />
+    <Compile Include="Model\GpkgGeometryColumns.cs" />
+    <Compile Include="Model\GpkgMetadata.cs" />
+    <Compile Include="Model\GpkgMetadataReference.cs" />
+    <Compile Include="Model\GpkgSpatialRefSys.cs" />
+    <Compile Include="Hashing.cs" />
+    <Compile Include="Model\ITnfPropertyObjectTypeValidForTypeOfTransport.cs" />
+    <Compile Include="Model\TnfArea.cs" />
+    <Compile Include="Model\TnfAttributes.cs" />
+    <Compile Include="Model\TnfChange.cs" />
+    <Compile Include="Model\TnfChangeTransaction.cs" />
+    <Compile Include="Model\TnfConnectionPort.cs" />
+    <Compile Include="Model\TnfDirectLocationReference.cs" />
+    <Compile Include="Model\TnfToDoListDetails.cs" />
+    <Compile Include="Model\TnfToDoListMessage.cs" />
+    <Compile Include="Model\TnfPropertyObjectTypeValidForTypeOfTransport.cs" />
+    <Compile Include="Model\TnfPropertyObjectTypeValidForTypeOfTransportManager.cs" />
+    <Compile Include="Model\TnfSecondaryLrs.cs" />
+    <Compile Include="Model\TnfTask.cs" />
+    <Compile Include="Model\TnfTaskEditableType.cs" />
+    <Compile Include="Model\TnfTopologyLevel.cs" />
+    <Compile Include="Model\tnf_attr.cs">
+      <DependentUpon>tnf_attr.xsd</DependentUpon>
+    </Compile>
+    <Compile Include="Model\TnfMetadata.cs" />
+    <Compile Include="Model\TnfNetwork.cs" />
+    <Compile Include="Model\TnfNetworkReference.cs" />
+    <Compile Include="Model\TnfProperty.cs" />
+    <Compile Include="Model\TnfPropertyObject.cs" />
+    <Compile Include="GeoPackageDatabase.cs" />
+    <Compile Include="Model\TnfSecondaryLrsIdentity.cs" />
+    <Compile Include="Model\TnfCatalogue.cs" />
+    <Compile Include="Model\TnfLink.cs" />
+    <Compile Include="Model\TnfLinkSequence.cs" />
+    <Compile Include="Model\TnfNode.cs" />
+    <Compile Include="Model\TnfPropertyObjectPropertyType.cs" />
+    <Compile Include="Model\TnfPropertyObjectType.cs" />
+    <Compile Include="Model\TnfStructuredValueDomainPropertyType.cs" />
+    <Compile Include="OpenTnfException.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\AssemblyInfoVersion.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Resource.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resource.resx</DependentUpon>
+    </Compile>
+    <Compile Include="SQLiteInteropLoader.cs" />
+    <Compile Include="TableManager.cs" />
+    <Compile Include="Model\TnfValidValue.cs" />
+    <Compile Include="Model\TnfValueDomain.cs" />
+    <Compile Include="Validation\ValidationMessage.cs" />
+    <Compile Include="Validation\ValidationMessageType.cs" />
+    <Compile Include="Validation\ValidationResources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>ValidationResources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Validation\ValidationResult.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{3259AA49-8AA1-44D3-9025-A0B520596A8C}" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Model\tnf_attr.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="origin.gpkg" />
+    <None Include="Properties\AssemblyInfoVersion.cs.tmpl" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Properties\Resources.no.resx" />
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resource.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resource.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.sv.resx">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Validation\ValidationResources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>ValidationResources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Validation\ValidationResources.sv.resx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="dlls\x64\" />
+    <Folder Include="dlls\x86\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="dlls\System.Data.SQLite.Core.targets" Condition="Exists('dlls\System.Data.SQLite.Core.targets')" />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>subwcrev.exe "$(SolutionDir)." "$(ProjectDir)Properties\AssemblyInfoVersion.cs.tmpl" "$(ProjectDir)Properties\AssemblyInfoVersion.cs"
+
+</PreBuildEvent>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

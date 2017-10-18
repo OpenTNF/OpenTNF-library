@@ -1,0 +1,10 @@
+﻿using System.Reflection;
+using System.Resources;
+
+// Version information for an assembly consists of the following four values:
+//
+//      Major Version
+//      Minor Version
+//      Revision
+//      Build
+[assembly: AssemblyVersion("1.0.0.4799")]
