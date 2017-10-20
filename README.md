@@ -29,12 +29,12 @@ Boolean values are stored as integers, with the following interpretation:
 Date values are stored as DateTime. The time of day shall always be set to `00:00:00`.
 
 ### DateTime
-All Time and DateTime information are stored in UTC time.
+DateTime values are stored in UTC time.
 
 This does not apply to fields that are of type DateTime but contain only date information (see above).
 
 ### Attribute values
-Attribute values in the table `tnf_property` are serialized as XML.
+Attribute values in the table `tnf_property` are serialized as XML. The library provides built-in serialization and deserialization of attribute values.
 
 ## Limitations
 This section describes all limitations that the reference implementation imposes on the OpenTNF standard.
@@ -50,16 +50,16 @@ The `oid` column in the following tables can only contain integer values:
 * TNF_SECONDARY_LRS
 * TNF_AREA
 
-This also applies to any column that references the `oid` column in the above table with a foreign key.
+This also applies to any column that references the `oid` column in any of the above tables with a foreign key.
 
 ## Extensions
-This chapter describes extensions to the OpenTNF standard made by the reference implementation.
+This chapter describes extensions to the OpenTNF standard made in the reference implementation.
 
 ### Tasks
-The tables `tnf_task` and `tnf_task_editable_type` tables are included, and can be used to store tasks and issues related to the dataset in the file.
+The tables `tnf_task` and `tnf_task_editable_type` tables are included, and can be used to store tasks related to the dataset in the file.
 
 ### Areas
-The table `tnf_area` can be used to store polygons related to the dataset in the file.
+The table `tnf_area` can be used to store areas related to the dataset in the file.
 
 ### Metadata Keys
 The following additional metadata keys are defined:
