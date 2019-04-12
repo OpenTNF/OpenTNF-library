@@ -73,7 +73,7 @@ The following additional metadata keys are defined:
 ```cs
 using (GeoPackageDatabase db = new GeoPackageDatabase(fileName))
 {
-    db.OpenConnection();
+    db.OpenGeoPackageDatabase();
     // Read and write...
     db.CloseConnection();
 }
@@ -83,7 +83,7 @@ using (GeoPackageDatabase db = new GeoPackageDatabase(fileName))
 using (GeoPackageDatabase db = new GeoPackageDatabase(fileName))
 {
     db.CreateGeoPackageDatabase(3006, null, "Example", DataSetType.Snapshot, null, false, true);
-    db.OpenConnection();
+    db.OpenGeoPackageDatabase();
     // Read and write...
     db.CloseConnection();
 }
@@ -93,7 +93,7 @@ using (GeoPackageDatabase db = new GeoPackageDatabase(fileName))
 ```cs
 using (GeoPackageDatabase db = new GeoPackageDatabase(fileName))
 {
-    db.OpenConnection();
+    db.OpenGeoPackageDatabase();
     TnfLinkSequenceManager manager = db.GetTableManager<TnfLinkSequenceManager>();
     List<TnfLinkSequence> linkSequences = manager.GetPage(0, 1000);
     db.CloseConnection();
@@ -104,7 +104,7 @@ using (GeoPackageDatabase db = new GeoPackageDatabase(fileName))
 ```cs
 using (GeoPackageDatabase db = new GeoPackageDatabase(fileName))
 {
-    db.OpenConnection();
+    db.OpenGeoPackageDatabase();
     TnfLinkSequenceManager manager = db.GetTableManager<TnfLinkSequenceManager>();
     manager.Add(new TnfLinkSequence
     {
