@@ -126,6 +126,11 @@ namespace OpenTNF.Library.Model
             return Get(ReadPropertyObject, maxResults);
         }
 
+        public List<TnfPropertyObject> GetPage(int offset, int limit)
+        {
+            return GetPage(ReadPropertyObject, offset, limit);
+        }
+
         public int Update(TnfPropertyObject tnfPropertyObject)
         {
             return Update(new object[]
