@@ -396,7 +396,7 @@ namespace OpenTNF.Library
             return list;
         }
 
-        protected List<T> GetPage<T>(Func<IDataReader, T> parameter, int offset, int limit)
+        public List<T> GetPage<T>(Func<IDataReader, T> parameter, int offset, int limit)
         {
             if (SelectPageCmd == null)
             {

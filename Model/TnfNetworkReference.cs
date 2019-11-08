@@ -352,6 +352,11 @@ END;"
             return tnfList;
         }
 
+        public List<TnfNetworkReference> GetPage(int offset, int limit)
+        {
+            return GetPage(ReadObject, offset, limit);
+        }
+
         private static TnfNetworkReference ReadObject(IDataRecord reader)
         {
             var tnfNetworkReference = new TnfNetworkReference();
