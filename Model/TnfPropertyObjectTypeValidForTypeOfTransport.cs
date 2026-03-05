@@ -38,4 +38,11 @@ namespace OpenTNF.Library.Model
                     PropertyObjectTypeOid, CatalogueOid, TypeOfTransport);
         }
     }
+
+    public static class TnfTypeOfTransport
+    {
+        public const string Road = "road";
+        public const string Rail = "rail";
+        public const string Water = "water";
+    }
 }

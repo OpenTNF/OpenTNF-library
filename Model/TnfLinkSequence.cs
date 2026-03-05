@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -60,7 +58,7 @@ namespace OpenTNF.Library.Model
 
     public class TnfLinkSequenceManager : TableManager
     {
-        public static string TnfLinkSequenceTableName = "tnf_link_sequence";
+        public const string TnfLinkSequenceTableName = "tnf_link_sequence";
 
         public TnfLinkSequenceManager(GeoPackageDatabase db) : base(db, TnfLinkSequenceTableName, GetColumnInfos())
         {
@@ -80,25 +78,27 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "vid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "network_oid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "next_free_port_number",
-                    SqlType = "INT",
+                    SqlType = "INTEGER",
                     DataType = Type.GetType("System.Int32")
                 },
                 new ColumnInfo
                 {
                     Name = "geometry",
-                    SqlType = "LineString",
-                    DataType = Type.GetType("System.Byte[]")
+                    SqlType = "LINESTRING",
+                    DataType = Type.GetType("System.Byte[]"),
+                    HasZ = true,
+                    HasM = true,
                 }
             };
         }
@@ -128,6 +128,30 @@ namespace OpenTNF.Library.Model
         public List<TnfLinkSequence> GetPage(int offset, int limit)
         {
             return GetPage(ReadObject, offset, limit);
+        }
+
+        public List<string> GetExistingOids(List<string> oids)
+        {
+            List<string> existingOids = new List<string>();
+            if (oids.Count == 0)
+            {
+                return existingOids;
+            }
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"SELECT oid FROM {TnfLinkSequenceTableName} " +
+                    $"WHERE oid in ({string.Join(",", oids.Select(oid => $"'{oid}'"))})";
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        existingOids.Add(reader["oid"].FromDbString());
+                    }
+                }
+            }
+            return existingOids;
         }
 
         public int Update(TnfLinkSequence tnfLinkSequence)
@@ -160,7 +184,7 @@ namespace OpenTNF.Library.Model
             tnfLinkSequence.Vid = reader["vid"].FromDbString();
             tnfLinkSequence.NetworkOid = (int)reader["network_oid"].ToInt32();
             tnfLinkSequence.NextFreePortNumber = reader["next_free_port_number"].ToInt32();
-            
+
             object geometry = reader["geometry"];
             if (!(geometry is DBNull))
             {

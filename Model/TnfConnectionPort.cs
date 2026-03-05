@@ -23,6 +23,11 @@ namespace OpenTNF.Library.Model
         public const string NodeOidFieldName = "node_oid";
         public const string NodePortNumberFieldName = "node_port_number";
 
+        public TnfConnectionPort()
+        {
+            Distance = -1.0;
+        }
+
         public string LinkSequenceOid { get; set; }
         public int PortNumber { get; set; }
         public double Distance { get; set; }
@@ -73,20 +78,29 @@ namespace OpenTNF.Library.Model
     public class TnfConnectionPortManager : TableManager
     {
         private const string PrimaryKey = "link_sequence_oid, port_number, node_oid, node_port_number";
-        public static string TnfConnectionPortTableName = "tnf_connection_port";
+        public const string TnfConnectionPortTableName = "tnf_connection_port";
 
         public TnfConnectionPortManager(GeoPackageDatabase db) : base(db,TnfConnectionPortTableName, GetColumnInfos(),PrimaryKey)
         {
         }
 
-        protected override string[] Indices()
+        protected override IndexInfo[] Indices()
         {
             return new[]
             {
-                String.Format("CREATE INDEX IDX_tnf_connection_port_node_oid ON {0}({1})", TnfConnectionPortTableName, "node_oid"),
-                String.Format("CREATE INDEX IDX_tnf_connection_port_link_sequence_oid ON {0}({1})", TnfConnectionPortTableName, "link_sequence_oid")
+                new IndexInfo
+                {
+                    Name = "IDX_tnf_connection_port_node_oid",
+                    Sql = $"CREATE INDEX IDX_tnf_connection_port_node_oid ON {TnfConnectionPortTableName}(node_oid)"
+                },
+                new IndexInfo
+                {
+                    Name = "IDX_tnf_connection_port_link_sequence_oid",
+                    Sql = $"CREATE INDEX IDX_tnf_connection_port_link_sequence_oid ON {TnfConnectionPortTableName}(link_sequence_oid)"
+                }
             };
         }
+
         private static ColumnInfo[] GetColumnInfos()
         {
             return new[]

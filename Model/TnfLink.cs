@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -57,7 +54,7 @@ namespace OpenTNF.Library.Model
         public double? SuperMeasureTo { get; set; }
         public int? Direction { get; set; }
         public int? TopologyLevelOid { get; set; }
-        
+
         public override bool Equals(object obj)
         {
             if (obj is TnfLink)
@@ -65,9 +62,9 @@ namespace OpenTNF.Library.Model
                 var v = obj as TnfLink;
 
                 if (NetworkOid == v.NetworkOid &&
-                    Length == v.Length &&
-                    MeasureFrom == v.MeasureFrom &&
-                    MeasureTo == v.MeasureTo &&
+                    Equals(Length, v.Length) &&
+                    Equals(MeasureFrom, v.MeasureFrom) &&
+                    Equals(MeasureTo, v.MeasureTo) &&
                     LinkSequenceOid == v.LinkSequenceOid &&
                     ValidFrom == v.ValidFrom &&
                     ValidTo == v.ValidTo &&
@@ -75,8 +72,8 @@ namespace OpenTNF.Library.Model
                     NodeOidEnd == v.NodeOidEnd &&
                     Lanecode == v.Lanecode &&
                     SuperLinkSequenceOid == v.SuperLinkSequenceOid &&
-                    SuperMeasureFrom == v.SuperMeasureFrom &&
-                    SuperMeasureTo == v.SuperMeasureTo &&
+                    Equals(SuperMeasureFrom, v.SuperMeasureFrom) &&
+                    Equals(SuperMeasureTo, v.SuperMeasureTo) &&
                     Direction == v.Direction &&
                     TopologyLevelOid == v.TopologyLevelOid)
                 {
@@ -141,11 +138,15 @@ namespace OpenTNF.Library.Model
         public TnfLinkManager(GeoPackageDatabase db) : base(db, TnfLinkTableName, GetColumnInfos(db.HasTopologyLevel))
         {
         }
-        protected override string[] Indices()
+        protected override IndexInfo[] Indices()
         {
             return new[]
             {
-                String.Format("CREATE INDEX IDX_tnf_link_link_sequence_oid ON {0}({1})", TnfLinkTableName, "link_sequence_oid")
+                new IndexInfo
+                {
+                    Name = "IDX_tnf_link_link_sequence_oid",
+                    Sql = $"CREATE INDEX IDX_tnf_link_link_sequence_oid ON {TnfLinkTableName}(link_sequence_oid)"
+                }
             };
         }
         protected override string[] Constraints()
@@ -157,7 +158,12 @@ namespace OpenTNF.Library.Model
         {
             var ret = new[]
             {
-                new ColumnInfo {Name = TnfLink.NetworkOidFieldName, SqlType = "TEXT", DataType = Type.GetType("System.String")},
+                new ColumnInfo
+                {
+                    Name = TnfLink.NetworkOidFieldName,
+                    SqlType = "TEXT",
+                    DataType = Type.GetType("System.String"),
+                },
                 new ColumnInfo
                     {
                         Name = TnfLink.LengthFieldName,
@@ -168,24 +174,44 @@ namespace OpenTNF.Library.Model
                     {
                         Name = TnfLink.MeasureFromFieldName,
                         SqlType = "DOUBLE",
-                        DataType = Type.GetType("System.Double")
+                        DataType = Type.GetType("System.Double"),
                     },
                 new ColumnInfo
                     {
                         Name = TnfLink.MeasureToFieldName,
                         SqlType = "DOUBLE",
-                        DataType = Type.GetType("System.Double")
+                        DataType = Type.GetType("System.Double"),
                     },
                 new ColumnInfo
                     {
                         Name = TnfLink.LinkSequenceOidFieldName,
                         SqlType = "TEXT",
-                        DataType = Type.GetType("System.String")
+                        DataType = Type.GetType("System.String"),
                     },
-                new ColumnInfo {Name = TnfLink.ValidFromFieldName, SqlType = "DATETIME", DataType = Type.GetType("System.DateTime")},
-                new ColumnInfo {Name = TnfLink.ValidToFieldName, SqlType = "DATETIME", DataType = Type.GetType("System.DateTime")},
-                new ColumnInfo {Name = TnfLink.NodeOidStartFieldName, SqlType = "TEXT", DataType = Type.GetType("System.String")},
-                new ColumnInfo {Name = TnfLink.NodeOidEndFieldName, SqlType = "TEXT", DataType = Type.GetType("System.String")}
+                new ColumnInfo
+                    {
+                        Name = TnfLink.ValidFromFieldName,
+                        SqlType = "DATE",
+                        DataType = Type.GetType("System.DateTime"),
+                    },
+                new ColumnInfo
+                    {
+                        Name = TnfLink.ValidToFieldName,
+                        SqlType = "DATE",
+                        DataType = Type.GetType("System.DateTime"),
+                    },
+                new ColumnInfo
+                {
+                    Name = TnfLink.NodeOidStartFieldName,
+                    SqlType = "TEXT",
+                    DataType = Type.GetType("System.String"),
+                },
+                new ColumnInfo
+                {
+                    Name = TnfLink.NodeOidEndFieldName,
+                    SqlType = "TEXT",
+                    DataType = Type.GetType("System.String"),
+                }
             };
 
             if (hasTopologyLevel)
@@ -212,8 +238,8 @@ namespace OpenTNF.Library.Model
                 tnfLink.MeasureFrom,
                 tnfLink.MeasureTo,
                 tnfLink.LinkSequenceOid,
-                tnfLink.ValidFrom?.Date,
-                tnfLink.ValidTo?.Date,
+                tnfLink.ValidFrom.ToDateString(),
+                tnfLink.ValidTo.ToDateString(),
                 tnfLink.NodeOidStart,
                 tnfLink.NodeOidEnd
             };
@@ -276,8 +302,8 @@ namespace OpenTNF.Library.Model
                 tnfLink.MeasureFrom,
                 tnfLink.MeasureTo,
                 tnfLink.LinkSequenceOid,
-                tnfLink.ValidFrom?.Date,
-                tnfLink.ValidTo?.Date,
+                tnfLink.ValidFrom.ToDateString(),
+                tnfLink.ValidTo.ToDateString(),
                 tnfLink.NodeOidStart,
                 tnfLink.NodeOidEnd
             };
@@ -303,6 +329,20 @@ namespace OpenTNF.Library.Model
             return Delete(new object[] { oid });
         }
 
+        public int DeleteByLinkSequence(string linkSequenceOid)
+        {
+
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    string.Format(
+                        "DELETE FROM {0} WHERE link_sequence_oid = '{1}'",
+                        TnfLinkTableName, linkSequenceOid);
+
+                return command.ExecuteNonQuery();
+            }
+        }
+
         public int Count(string oid)
         {
             return Count(new object[] { oid });
@@ -311,7 +351,7 @@ namespace OpenTNF.Library.Model
         private static TnfLink ReadObject(IDataRecord reader, bool hasTopologyLevel)
         {
             var tnfLink = new TnfLink();
-            
+
             tnfLink.NetworkOid = reader["network_oid"].ToInt32();
             tnfLink.Length = reader["length"].ToDouble();
             tnfLink.MeasureFrom = reader["measure_from"].ToDouble();
@@ -321,7 +361,6 @@ namespace OpenTNF.Library.Model
             tnfLink.ValidTo = reader["valid_to"].ToDateTime();
             tnfLink.NodeOidStart = reader["node_oid_start"].FromDbString();
             tnfLink.NodeOidEnd = reader["node_oid_end"].FromDbString();
-
             if (hasTopologyLevel)
             {
                 tnfLink.Lanecode = reader["lanecode"].FromDbString();
@@ -331,7 +370,7 @@ namespace OpenTNF.Library.Model
                 tnfLink.Direction = reader["direction"].ToInt32();
                 tnfLink.TopologyLevelOid = reader["topology_level_oid"].ToInt32();
             }
-            
+
             return tnfLink;
         }
     }

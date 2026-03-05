@@ -1,21 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
     public interface ITnfArea
     {
-        int Oid { get; set; }
+        string Oid { get; set; }
         string Name { get; set; }
+        string Type { get; set; }
+        int? Code { get; set; }
         byte[] Shape { get; set; }
     }
     public class TnfArea : ITnfArea
     {
-        public int Oid { get; set; }
+        public string Oid { get; set; }
         public string Name { get; set; }
+        public string Type { get; set; }
+        public int? Code { get; set; }
         public byte[] Shape { get; set; }
 
         public override string ToString()
@@ -26,7 +26,7 @@ namespace OpenTNF.Library.Model
 
     public class TnfAreaManager : TableManager
     {
-        public static string TnfAreaTableName = "tnf_area";
+        public const string TnfAreaTableName = "tnf_area";
 
         public TnfAreaManager(GeoPackageDatabase db) : base(db, TnfAreaTableName, GetColumnInfos())
         {
@@ -50,8 +50,22 @@ namespace OpenTNF.Library.Model
                 },
                 new ColumnInfo
                 {
+                    Name = "type",
+                    SqlType = "TEXT",
+                    DataType = Type.GetType("System.String"),
+                    Requirement = ColumnRequirement.OptionalReadOnly
+                },
+                new ColumnInfo
+                {
+                    Name = "code",
+                    SqlType = "INTEGER",
+                    DataType = Type.GetType("System.Int32"),
+                    Requirement = ColumnRequirement.OptionalReadOnly
+                },
+                new ColumnInfo
+                {
                     Name = "shape",
-                    SqlType = "Polygon",
+                    SqlType = "POLYGON",
                     DataType = Type.GetType("System.Byte[]")
                 }
             };
@@ -63,11 +77,13 @@ namespace OpenTNF.Library.Model
                 {
                     tnfArea.Oid,
                     tnfArea.Name,
+                    tnfArea.Type,
+                    tnfArea.Code,
                     tnfArea.Shape
                 });
         }
 
-        public TnfArea Get(int oid)
+        public TnfArea Get(string oid)
         {
             return Get(ReadObject, new object[] { oid });
         }
@@ -75,7 +91,7 @@ namespace OpenTNF.Library.Model
         public List<TnfArea> GetByMaxResult(int maxresult)
         {
             return Get(ReadObject, maxresult);
-        } 
+        }
 
         public List<TnfArea> GetPage(int offset, int limit)
         {
@@ -88,11 +104,13 @@ namespace OpenTNF.Library.Model
                 {
                     tnfArea.Oid,
                     tnfArea.Name,
+                    tnfArea.Type,
+                    tnfArea.Code,
                     tnfArea.Shape
                 });
         }
 
-        public int Delete(int oid)
+        public int Delete(string oid)
         {
             return Delete(new object[] { oid });
         }
@@ -106,8 +124,11 @@ namespace OpenTNF.Library.Model
         {
             var tnfArea = new TnfArea();
 
-            tnfArea.Oid = Convert.ToInt32(reader["oid"].FromDbString());
+            tnfArea.Oid = reader["oid"].FromDbString();
             tnfArea.Name = reader["name"].FromDbString();
+            tnfArea.Type = reader.ReadIfExists("type").FromDbString();
+            tnfArea.Code = reader.ReadIfExists("code").ToInt32();
+
             object shape = reader["shape"];
             if (!(shape is DBNull))
             {

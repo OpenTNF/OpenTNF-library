@@ -121,9 +121,9 @@
     <value>1.0</value>
   </data>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
-  <data name="origin" type="System.Resources.ResXFileRef, System.Windows.Forms">
+  <!--<data name="origin" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>origin.gpkg;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
+  </data>-->
   <data name="SpatialAttributeEncoding" xml:space="preserve">
     <value>WKT</value>
   </data>

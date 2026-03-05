@@ -1,3 +1,5 @@
-/bin/
-/obj/
-/.vs/OpenTNF.Library/v15/.suo
+﻿bin/
+obj/
+.vs/
+*.suo
+launchSettings.json

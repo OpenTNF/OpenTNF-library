@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -11,6 +9,8 @@ namespace OpenTNF.Library.Model
         int? NetworkOid { get; }
         byte[] Geometry { get; }
         int? NextFreePortNumber { get; }
+        DateTime? ValidFrom { get; }
+        DateTime? ValidTo { get; }
     }
 
     public class TnfNode : ITnfNode
@@ -21,6 +21,9 @@ namespace OpenTNF.Library.Model
         public int? NextFreePortNumber { get; set; }
 
         public byte[] Geometry { get; set; }
+
+        public DateTime? ValidFrom { get; set; }
+        public DateTime? ValidTo { get; set; }
 
         public override bool Equals(object obj)
         {
@@ -47,23 +50,27 @@ namespace OpenTNF.Library.Model
                 Vid,
                 NetworkOid,
                 Geometry,
-                NextFreePortNumber);
+                NextFreePortNumber,
+                ValidFrom,
+                ValidTo);
         }
 
         public override string ToString()
         {
-            return String.Format("TnfNode: Oid = {0}, Vid = {1}, Geometry = {2}, NextFreePortNumber = {3}, NetworkOid = {4}",
+            return String.Format("TnfNode: Oid = {0}, Vid = {1}, Geometry = {2}, NextFreePortNumber = {3}, NetworkOid = {4}, ValidFrom = {5}, ValidTo = {6}",
                 Oid,
                 Vid,
                 Geometry,
                 NextFreePortNumber,
-                NetworkOid);
+                NetworkOid,
+                ValidFrom,
+                ValidTo);
         }
     }
 
     public class TnfNodeManager : TableManager
     {
-        public static string TnfNodeTableName = "tnf_node";
+        public const string TnfNodeTableName = "tnf_node";
 
         public TnfNodeManager(GeoPackageDatabase db) : base(db, TnfNodeTableName, GetColumnInfos())
         {
@@ -83,25 +90,40 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "vid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "network_oid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "geometry",
-                    SqlType = "Point",
-                    DataType = Type.GetType("System.Byte[]")
+                    SqlType = "POINT",
+                    DataType = Type.GetType("System.Byte[]"),
+                    HasZ = true,
                 },
                 new ColumnInfo
                 {
                     Name = "next_free_port_number",
-                    SqlType = "INT",
-                    DataType = Type.GetType("System.Int32")
+                    SqlType = "INTEGER",
+                    DataType = Type.GetType("System.Int32"),
+                },
+                new ColumnInfo
+                {
+                    Name = "valid_from",
+                    SqlType = "DATE",
+                    DataType = Type.GetType("System.DateTime"),
+                    Requirement = ColumnRequirement.OptionalReadOnly,
+                },
+                new ColumnInfo
+                {
+                    Name = "valid_to",
+                    SqlType = "DATE",
+                    DataType = Type.GetType("System.DateTime"),
+                    Requirement = ColumnRequirement.OptionalReadOnly,
                 }
             };
         }
@@ -114,7 +136,9 @@ namespace OpenTNF.Library.Model
                     tnfNode.Vid,
                     tnfNode.NetworkOid?.ToString(),
                     tnfNode.Geometry,
-                    tnfNode.NextFreePortNumber
+                    tnfNode.NextFreePortNumber,
+                    tnfNode.ValidFrom.ToDateString(),
+                    tnfNode.ValidTo.ToDateString()
                 });
         }
 
@@ -133,6 +157,30 @@ namespace OpenTNF.Library.Model
             return GetPage(ReadObject, offset, limit);
         }
 
+        public List<string> GetExistingOids(List<string> oids)
+        {
+            List<string> existingOids = new List<string>();
+            if (oids.Count == 0)
+            {
+                return existingOids;
+            }
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"SELECT oid FROM {TnfNodeTableName} " +
+                    $"WHERE oid in ({string.Join(",", oids.Select(oid => $"'{oid}'"))})";
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        existingOids.Add(reader["oid"].FromDbString());
+                    }
+                }
+            }
+            return existingOids;
+        }
+
         public int Update(TnfNode tnfNode)
         {
             return Update(new object[]
@@ -141,7 +189,9 @@ namespace OpenTNF.Library.Model
                     tnfNode.Vid,
                     tnfNode.NetworkOid?.ToString(),
                     tnfNode.Geometry,
-                    tnfNode.NextFreePortNumber
+                    tnfNode.NextFreePortNumber,
+                    tnfNode.ValidFrom.ToDateString(),
+                    tnfNode.ValidTo.ToDateString()
                 });
         }
 
@@ -168,6 +218,8 @@ namespace OpenTNF.Library.Model
             {
                 tnfNode.Geometry = (byte[])geometry;
             }
+            tnfNode.ValidFrom = reader.ReadIfExists("valid_from").ToDateTime();
+            tnfNode.ValidTo = reader.ReadIfExists("valid_to").ToDateTime();
 
             return tnfNode;
         }

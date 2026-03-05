@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -60,8 +57,8 @@ namespace OpenTNF.Library.Model
                     TurnFromDirection == v.TurnFromDirection &&
                     TurnOidLinearElementTo == v.TurnOidLinearElementTo &&
                     TurnToDirection == v.TurnToDirection &&
-                    Measure1 == v.Measure1 &&
-                    Measure2 == v.Measure2 &&
+                    Equals(Measure1, v.Measure1) &&
+                    Equals(Measure2, v.Measure2) &&
                     IsPreferred == v.IsPreferred &&
                     Lanecode == v.Lanecode &&
                     LinkRole == v.LinkRole &&
@@ -97,7 +94,7 @@ namespace OpenTNF.Library.Model
 
         public override string ToString()
         {
-            return String.Format(
+            return string.Format(
                 "TnfNetworkReference: PropertyOid = {0}, NetworkReferenceType = {1}, NetworkElementRef = {2}, " +
                 "ApplicableDirection = {3}, ApplicableSide = {4}, SeqNo = {5}, TurnOidLinearElementFrom = {6}, TurnFromDirection = {7}, " +
                 "TurnOidLinearElementTo = {8}, TurnToDirection = {9}, Measure1 = {10}, Measure2 = {11}, IsPreferred = {12}, " +
@@ -123,26 +120,34 @@ namespace OpenTNF.Library.Model
 
     public class TnfNetworkReferenceManager : TableManager
     {
-        public static string TnfNetworkReferenceTableName = "tnf_network_reference";
+        public const string TnfNetworkReferenceTableName = "tnf_network_reference";
 
-        public TnfNetworkReferenceManager(GeoPackageDatabase db) : base(db, TnfNetworkReferenceTableName, GetColumnInfos(),null)
+        public TnfNetworkReferenceManager(GeoPackageDatabase db) : base(db, TnfNetworkReferenceTableName, GetColumnInfos(), null)
         {
         }
 
         protected override string[] Constraints()
         {
-            return new[]
-                {
-                    String.Format("CONSTRAINT fk_tnrm_po FOREIGN KEY (property_oid) REFERENCES {0}(oid)",TnfPropertyManager.TnfPropertyTableName),
-                };
+            return
+                [
+                    string.Format("CONSTRAINT fk_tnrm_po FOREIGN KEY (property_oid) REFERENCES {0}(oid)",TnfPropertyManager.TnfPropertyTableName),
+                ];
         }
 
-        protected override string[] Indices()
+        protected override IndexInfo[] Indices()
         {
             return new[]
             {
-                String.Format("CREATE INDEX IDX_tnf_network_reference_property_oid ON {0}({1})", TnfNetworkReferenceTableName, "property_oid"),
-                String.Format("CREATE INDEX IDX_tnf_network_reference_network_element_ref ON {0}({1})", TnfNetworkReferenceTableName, "network_element_ref")
+                new IndexInfo
+                {
+                    Name = "IDX_tnf_network_reference_property_oid",
+                    Sql = $"CREATE INDEX IDX_tnf_network_reference_property_oid ON {TnfNetworkReferenceTableName}(property_oid)"
+                },
+                new IndexInfo
+                {
+                    Name = "IDX_tnf_network_reference_network_element_ref",
+                    Sql = $"CREATE INDEX IDX_tnf_network_reference_network_element_ref ON {TnfNetworkReferenceTableName}(network_element_ref)"
+                }
             };
         }
 
@@ -224,79 +229,79 @@ END;"
                 {
                     Name = "applicable_direction",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Int32")
+                    DataType = Type.GetType("System.Int32"),
                 },
                 new ColumnInfo
                 {
                     Name = "applicable_side",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Int32")
+                    DataType = Type.GetType("System.Int32"),
                 },
                 new ColumnInfo
                 {
                     Name = "seq_no",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Int32")
+                    DataType = Type.GetType("System.Int32"),
                 },
                 new ColumnInfo
                 {
                     Name = "turn_oid_linear_element_from",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "turn_from_direction",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Int32")
+                    DataType = Type.GetType("System.Int32"),
                 },
                 new ColumnInfo
                 {
                     Name = "turn_oid_linear_element_to",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "turn_to_direction",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Int32")
+                    DataType = Type.GetType("System.Int32"),
                 },
                 new ColumnInfo
                 {
                     Name = "measure1",
                     SqlType = "DOUBLE",
-                    DataType = Type.GetType("System.Double")
+                    DataType = Type.GetType("System.Double"),
                 },
                 new ColumnInfo
                 {
                     Name = "measure2",
                     SqlType = "DOUBLE",
-                    DataType = Type.GetType("System.Double")
+                    DataType = Type.GetType("System.Double"),
                 },
                 new ColumnInfo
                 {
                     Name = "is_preferred",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Boolean")
+                    DataType = Type.GetType("System.Boolean"),
                 },
                 new ColumnInfo
                 {
                     Name = "lanecode",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "link_role",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Int32")
+                    DataType = Type.GetType("System.Int32"),
                 },
                 new ColumnInfo
                 {
                     Name = "is_host",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Boolean")
+                    DataType = Type.GetType("System.Boolean"),
                 }
             };
         }
@@ -352,9 +357,49 @@ END;"
             return tnfList;
         }
 
+        public List<TnfNetworkReference> GetByPropertyObjectTypeOid(string catalogueOid, string propertyObjectTypeOid)
+        {
+            var tnfList = new List<TnfNetworkReference>();
+
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    string.Format(
+                        "SELECT * FROM {0} WHERE " +
+                        "exists ( select 1 from tnf_property where tnf_property.oid = {0}.property_oid and " +
+                        " exists (select 1 from tnf_property_object where catalogue_oid = '{1}' and property_object_type_oid = '{2}' and tnf_property.property_object_oid = tnf_property_object.oid" +
+                        " )" +
+                        ")",
+                        TnfNetworkReferenceTableName, catalogueOid, propertyObjectTypeOid);
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        tnfList.Add(ReadObject(reader));
+                    }
+                }
+            }
+
+            return tnfList;
+        }
+
         public List<TnfNetworkReference> GetPage(int offset, int limit)
         {
             return GetPage(ReadObject, offset, limit);
+        }
+
+        public int DeleteForProperty(string propertyOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    string.Format(
+                        "DELETE FROM {0} WHERE property_oid = '{1}'",
+                        TnfNetworkReferenceTableName, propertyOid);
+
+                return command.ExecuteNonQuery();
+            }
         }
 
         private static TnfNetworkReference ReadObject(IDataRecord reader)

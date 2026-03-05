@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -97,7 +95,7 @@ namespace OpenTNF.Library.Model
 
     public class TnfSecondaryLrsManager : TableManager
     {
-        public static string TnfSecondaryLrsTableName = "tnf_secondary_lrs";
+        public const string TnfSecondaryLrsTableName = "tnf_secondary_lrs";
 
         public TnfSecondaryLrsManager(GeoPackageDatabase db) : base(db, TnfSecondaryLrsTableName, GetColumnInfos())
         {
@@ -149,37 +147,38 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "assoc_referent_property_object_type_oid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "measure1_property_type_oid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "measure2_property_type_oid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "where_clause",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "sequence_property_type_oid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "order_descending",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Boolean")
+                    DataType = Type.GetType("System.Boolean"),
+                    Requirement = ColumnRequirement.OptionalReadOnly
                 },
             };
         }
@@ -235,13 +234,22 @@ namespace OpenTNF.Library.Model
             return Delete(new object[] { oid });
         }
 
+        public void ChangeCatalogueOid(int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText = $"UPDATE {TableName} SET catalogue_oid='{newOid}' WHERE catalogue_oid='{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
         private static TnfSecondaryLrs ReadObject(IDataRecord reader)
         {
             var tnfSecondaryLrs = new TnfSecondaryLrs();
 
             tnfSecondaryLrs.Oid = reader["oid"].FromDbString();
             tnfSecondaryLrs.Name = reader["name"].FromDbString();
-            tnfSecondaryLrs.Type =  reader["type"].ToInt();
+            tnfSecondaryLrs.Type = reader["type"].ToInt();
             tnfSecondaryLrs.CatalogueOid = reader["catalogue_oid"].ToInt();
             tnfSecondaryLrs.PropertyObjectTypeOid = reader["property_object_type_oid"].FromDbString();
             tnfSecondaryLrs.AssocReferentPropertyObjectTypeOid = reader["assoc_referent_property_object_type_oid"].ToInt();
@@ -249,7 +257,7 @@ namespace OpenTNF.Library.Model
             tnfSecondaryLrs.Measure2PropertyTypeOid = reader["measure2_property_type_oid"].FromDbString();
             tnfSecondaryLrs.WhereClause = reader["where_clause"].FromDbString();
             tnfSecondaryLrs.SequencePropertyTypeOid = reader["sequence_property_type_oid"].FromDbString();
-            tnfSecondaryLrs.OrderDescending = reader["order_descending"].ToInt() > 0;
+            tnfSecondaryLrs.OrderDescending = reader.ReadIfExists("order_descending").ToInt() > 0;
             return tnfSecondaryLrs;
         }
 

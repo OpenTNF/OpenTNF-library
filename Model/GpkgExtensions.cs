@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -54,11 +52,13 @@ namespace OpenTNF.Library.Model
 
     public class GpkgExtensionsManager : TableManager
     {
-        public static string GpkgExtensionsTableName = "gpkg_extensions";
+        public const string GpkgExtensionsTableName = "gpkg_extensions";
 
         public GpkgExtensionsManager(GeoPackageDatabase db) : base(db, GpkgExtensionsTableName, GetColumnInfos(), null)
         {
         }
+
+        protected override bool ShallCreateGpkgContentsEntry => false;
 
         protected override string[] Constraints()
         {
@@ -87,7 +87,7 @@ namespace OpenTNF.Library.Model
                 new ColumnInfo
                 {
                     Name = "extension_name",
-                    SqlType = "TEXT",
+                    SqlType = "TEXT NOT NULL",
                     DataType = Type.GetType("System.String")
                 },
                 new ColumnInfo

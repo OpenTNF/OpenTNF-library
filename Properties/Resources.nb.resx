@@ -132,10 +132,7 @@
   <data name="GpkgValidationException3" xml:space="preserve">
     <value>Ikke en gyldig GeoPackage-fil. Filnavnet har ikke etternavnet ".gpkg" eller ".gpkx".</value>
   </data>
-  <data name="OpenTnfDatabaseHasMoreThanOneSrid" xml:space="preserve">
-    <value>Databasen inneholder flere enn ett srid: {0}.</value>
-  </data>
-  <data name="OpenTnfSridMissing" xml:space="preserve">
-    <value>Srid mangler.</value>
+  <data name="OpenTnfDatabaseHasMoreThanOneSrsId" xml:space="preserve">
+    <value>Databasen inneholder flere enn ett srs id: {0}.</value>
   </data>
 </root>

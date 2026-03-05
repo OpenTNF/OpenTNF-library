@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -50,12 +48,12 @@ namespace OpenTNF.Library.Model
     public class TnfMetadataManager : TableManager
     {
         private const string PrimaryKey = "meta_key";
-        public static string TnfMetadataTableName = "tnf_metadata";
+        public const string TnfMetadataTableName = "tnf_metadata";
 
         public const string MetadataKeyCrs = "TNF_CRS_NAME";
         public const string MetadataKeyVersion = "TNF_VERSION";
 
-        public TnfMetadataManager(GeoPackageDatabase db) : base(db, TnfMetadataTableName, GetColumnInfos(),PrimaryKey)
+        public TnfMetadataManager(GeoPackageDatabase db) : base(db, TnfMetadataTableName, GetColumnInfos(), PrimaryKey)
         {
         }
 
@@ -71,6 +69,18 @@ namespace OpenTNF.Library.Model
                     tnfMetadata.MetaKey,
                     tnfMetadata.MetaValue
                 });
+        }
+
+        public void AddOrUpdate(TnfMetadata tnfMetadata)
+        {
+            if (Get(tnfMetadata.MetaKey) == null)
+            {
+                Add(tnfMetadata);
+            }
+            else
+            {
+                Update(tnfMetadata);
+            }
         }
 
         private static ColumnInfo[] GetColumnInfos()

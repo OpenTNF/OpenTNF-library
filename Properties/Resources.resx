@@ -136,12 +136,8 @@ The first 16 bytes of a GeoPackage SHALL contain “SQLite format 3” in ASCII.
     <value>Not a valid GeoPackage file. The file does not have the file extension name ".gpkg" or ".gpkx".</value>
     <comment>File Requirement 3: A GeoPackage SHALL have the file extension name “.gpkg” or ".gpkx".</comment>
   </data>
-  <data name="OpenTnfDatabaseHasMoreThanOneSrid" xml:space="preserve">
-    <value>More than one srid exist in the database: {0}.</value>
-    <comment>The table gpkg_geometry_columns should contain tables tnf_link and tnf_node. Both should have the same srs_id.</comment>
-  </data>
-  <data name="OpenTnfSridMissing" xml:space="preserve">
-    <value>Srid is missing.</value>
+  <data name="OpenTnfDatabaseHasMoreThanOneSrsId" xml:space="preserve">
+    <value>More than one srs id exist in the database: {0}.</value>
     <comment>The table gpkg_geometry_columns should contain tables tnf_link and tnf_node. Both should have the same srs_id.</comment>
   </data>
 </root>

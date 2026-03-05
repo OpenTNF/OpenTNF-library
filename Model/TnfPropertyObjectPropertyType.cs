@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Globalization;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -23,6 +20,7 @@ namespace OpenTNF.Library.Model
         int? ValueDomainOid { get; }
     }
 
+    [Serializable]
     public sealed class TnfPropertyObjectPropertyType : ITnfPropertyObjectPropertyType
     {
         public int Oid { get; set; }
@@ -36,7 +34,7 @@ namespace OpenTNF.Library.Model
         public string ShortName { get; set; }
         public DateTime? ValidFrom { get; set; }
         public DateTime? ValidTo { get; set; }
-        public int? AssocPropertyObjectTypeOid { get; set; }
+        public int? AssocPropertyObjectTypeOid { get; set; } // -1 indicates "any property object type in the catalogue"
         public string AssocType { get; set; }
         public int? ValueDomainOid { get; set; }
 
@@ -111,13 +109,13 @@ namespace OpenTNF.Library.Model
         }
         public static int UnlimitedMultiplicityMax = -1;
     }
-    
+
     public class TnfPropertyObjectPropertyTypeManager : TableManager
     {
         private const string PrimaryKey = "oid, catalogue_oid, property_object_type_oid";
-        public static string TnfPropertyObjectPropertyTypeTableName = "tnf_property_object_property_type";
+        public const string TnfPropertyObjectPropertyTypeTableName = "tnf_property_object_property_type";
 
-        public TnfPropertyObjectPropertyTypeManager(GeoPackageDatabase db) : base(db, TnfPropertyObjectPropertyTypeTableName, GetColumnInfos(),PrimaryKey)
+        public TnfPropertyObjectPropertyTypeManager(GeoPackageDatabase db) : base(db, TnfPropertyObjectPropertyTypeTableName, GetColumnInfos(), PrimaryKey)
         {
         }
 
@@ -127,7 +125,7 @@ namespace OpenTNF.Library.Model
                 {
                     String.Format("CONSTRAINT fk_tpopt_co FOREIGN KEY (catalogue_oid) REFERENCES {0}(oid)",TnfCatalogueManager.TnfCatalogueTableName),
                     String.Format("CONSTRAINT fk_tpopt_co_poto FOREIGN KEY (property_object_type_oid, catalogue_oid) REFERENCES {0}(oid, catalogue_oid)",TnfPropertyObjectTypeManager.TnfPropertyObjectTypeTableName),
-                    String.Format("CONSTRAINT fk_tpopt_co_apoto FOREIGN KEY (assoc_property_object_type_oid, catalogue_oid) REFERENCES {0}(oid, catalogue_oid)",TnfPropertyObjectTypeManager.TnfPropertyObjectTypeTableName),
+                    //String.Format("CONSTRAINT fk_tpopt_co_apoto FOREIGN KEY (assoc_property_object_type_oid, catalogue_oid) REFERENCES {0}(oid, catalogue_oid)",TnfPropertyObjectTypeManager.TnfPropertyObjectTypeTableName),
                     String.Format("CONSTRAINT fk_tpopt_co_vdo FOREIGN KEY (value_domain_oid, catalogue_oid) REFERENCES {0}(oid, catalogue_oid)",TnfValueDomainManager.TnfValueDomainTableName),
                     "CONSTRAINT check_tpopt_multiplicty CHECK (multiplicity_min >= 0 AND multiplicity_max >= -1 )"
                 };
@@ -220,38 +218,38 @@ END;"
                 new ColumnInfo
                 {
                     Name = "valid_from",
-                    SqlType = "DATETIME",
+                    SqlType = "DATE",
                     DataType = Type.GetType("System.DateTime")
                 },
                 new ColumnInfo
                 {
                     Name = "valid_to",
-                    SqlType = "DATETIME",
+                    SqlType = "DATE",
                     DataType = Type.GetType("System.DateTime")
                 },
                 new ColumnInfo
                 {
                     Name = "assoc_property_object_type_oid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "assoc_type",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "value_domain_oid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
             };
         }
 
         /// <summary>
-        /// Use this function to receive an oid that is not currently in use for a property object property type in the data catalogue.
+        /// Use this function to receive an oid that is not currently in use for a property object property type in the feature catalogue.
         /// </summary>
         /// <param name="catalogueOid"></param>
         /// <returns></returns>
@@ -277,8 +275,8 @@ END;"
                     tnfPropertyObjectPropertyType.Name,
                     tnfPropertyObjectPropertyType.Description,
                     tnfPropertyObjectPropertyType.ShortName,
-                    tnfPropertyObjectPropertyType.ValidFrom?.Date,
-                    tnfPropertyObjectPropertyType.ValidTo?.Date,
+                    tnfPropertyObjectPropertyType.ValidFrom.ToDateString(),
+                    tnfPropertyObjectPropertyType.ValidTo.ToDateString(),
                     tnfPropertyObjectPropertyType.AssocPropertyObjectTypeOid,
                     tnfPropertyObjectPropertyType.AssocType,
                     tnfPropertyObjectPropertyType.ValueDomainOid
@@ -308,8 +306,8 @@ END;"
                     tnfPropertyObjectPropertyType.Name,
                     tnfPropertyObjectPropertyType.Description,
                     tnfPropertyObjectPropertyType.ShortName,
-                    tnfPropertyObjectPropertyType.ValidFrom?.Date,
-                    tnfPropertyObjectPropertyType.ValidTo?.Date,
+                    tnfPropertyObjectPropertyType.ValidFrom.ToDateString(),
+                    tnfPropertyObjectPropertyType.ValidTo.ToDateString(),
                     tnfPropertyObjectPropertyType.AssocPropertyObjectTypeOid,
                     tnfPropertyObjectPropertyType.AssocType,
                     tnfPropertyObjectPropertyType.ValueDomainOid
@@ -324,7 +322,7 @@ END;"
         /// <summary>
         /// Get all property object property types that refer to a certain value domain, including historical and future
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <param name="valueDomainOid">OID for the value domain</param>
         /// <returns></returns>
         public List<TnfPropertyObjectPropertyType> GetForValueDomain(int catalogueOid, int valueDomainOid)
@@ -335,7 +333,7 @@ END;"
         /// <summary>
         /// Get all property object property types that refer to a certain value domain and are valid in a certain time interval.
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <param name="valueDomainOid">OID for the value domain</param>
         /// <param name="fromDate">Start date of the interval (inclusive)</param>
         /// <param name="toDate">End date of the interval (exclusive)</param>
@@ -353,7 +351,7 @@ END;"
 
             string commandText =
                 "SELECT catalogue_oid, oid, property_object_type_oid, assoc_property_object_type_oid, value_domain_oid, name, shortname, description, multiplicity_min, " +
-                String.Format("multiplicity_max, mandatory, valid_from, valid_to, assoc_type FROM {0} WHERE catalogue_oid = ",TnfPropertyObjectPropertyTypeTableName) +
+                String.Format("multiplicity_max, mandatory, valid_from, valid_to, assoc_type FROM {0} WHERE catalogue_oid = ", TnfPropertyObjectPropertyTypeTableName) +
                 catalogueOid + " AND value_domain_oid = " + valueDomainOid;
 
             if (bTimeInterval)
@@ -379,7 +377,7 @@ END;"
         /// <summary>
         /// Get all property object property types, including historical and future
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <param name="propertyObjectTypeOid">OID for the property object type</param>
         /// <returns></returns>
         public List<TnfPropertyObjectPropertyType> GetAll(int catalogueOid, int propertyObjectTypeOid)
@@ -390,7 +388,7 @@ END;"
         /// <summary>
         /// Get all property object property types that are valid in a certain time interval
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <param name="propertyObjectTypeOid">OID for the property object type</param>
         /// <param name="fromDate">Start date of the interval (inclusive)</param>
         /// <param name="toDate">End date of the interval (exclusive)</param>
@@ -407,9 +405,7 @@ END;"
             var propertyObjectPropertyTypes = new List<TnfPropertyObjectPropertyType>();
 
             string commandText =
-                "SELECT catalogue_oid, oid, property_object_type_oid, assoc_property_object_type_oid, value_domain_oid, name, shortname, description, multiplicity_min, " +
-                String.Format("multiplicity_max, mandatory, valid_from, valid_to, assoc_type FROM {0} WHERE catalogue_oid = ",TnfPropertyObjectPropertyTypeTableName) +
-                catalogueOid + " AND property_object_type_oid = " + propertyObjectTypeOid;
+                $"SELECT {GetExistingColumnNamesString()} FROM {TnfPropertyObjectPropertyTypeTableName} WHERE catalogue_oid = {catalogueOid} AND property_object_type_oid = {propertyObjectTypeOid}";
 
             if (bTimeInterval)
             {
@@ -443,13 +439,77 @@ END;"
             propertyObjectPropertType.AssocType = reader["assoc_type"].FromDbString();
             propertyObjectPropertType.ShortName = reader["shortname"].FromDbString();
             propertyObjectPropertType.Description = reader["description"].FromDbString();
-            propertyObjectPropertType.MultiplicityMin = (Int32) reader["multiplicity_min"].ToInt32();
-            propertyObjectPropertType.MultiplicityMax = (Int32) reader["multiplicity_max"].ToInt32();
-            propertyObjectPropertType.Mandatory = (bool) reader["mandatory"].ToBoolean();
+            propertyObjectPropertType.MultiplicityMin = (Int32)reader["multiplicity_min"].ToInt32();
+            propertyObjectPropertType.MultiplicityMax = (Int32)reader["multiplicity_max"].ToInt32();
+            propertyObjectPropertType.Mandatory = (bool)reader["mandatory"].ToBoolean();
             propertyObjectPropertType.ValidFrom = reader["valid_from"].ToDateTime();
             propertyObjectPropertType.ValidTo = reader["valid_to"].ToDateTime();
 
             return propertyObjectPropertType;
+        }
+
+        public void ChangeCatalogueOid(int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {TnfPropertyObjectPropertyTypeTableName} SET catalogue_oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangePropertyObjectTypeOid(int catalogueOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {TnfPropertyObjectPropertyTypeTableName} SET property_object_type_oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{catalogueOid}' AND property_object_type_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangeOid(int catalogueOid, int propertyObjectTypeOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {TnfPropertyObjectPropertyTypeTableName} SET oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{catalogueOid}' AND property_object_type_oid = '{propertyObjectTypeOid}' AND oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangeValueDomainOid(int catalogueOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {TnfPropertyObjectPropertyTypeTableName} SET value_domain_oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{catalogueOid}' AND value_domain_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangeAssociatedPropertyObjectTypeOid(int catalogueOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {TnfPropertyObjectPropertyTypeTableName} SET assoc_property_object_type_oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{catalogueOid}' AND assoc_property_object_type_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void DeleteLeftOverPropertyObjectPropertyTypesForCatalogue(int catalogueOid)
+        {
+            using (var deleteCommand = Db.Command)
+            {
+                deleteCommand.CommandText = $"DELETE FROM tnf_property_object_property_type WHERE catalogue_oid = {catalogueOid}";
+                deleteCommand.ExecuteNonQuery();
+            }
         }
     }
 }

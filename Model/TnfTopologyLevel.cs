@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -58,7 +56,7 @@ namespace OpenTNF.Library.Model
 
     public class TnfTopologyLevelManager : TableManager
     {
-        public static string TnfTopologyLevelTableName = "tnf_topology_level";
+        public const string TnfTopologyLevelTableName = "tnf_topology_level";
 
         private static readonly string[] m_primaryKey = new string[] { "oid", "network_oid" };
 
@@ -82,7 +80,7 @@ namespace OpenTNF.Library.Model
                     Name = "network_oid",
                     SqlType = "TEXT NOT NULL",
                     DataType = Type.GetType("System.String"),
-                    HandleMissing = true
+                    Requirement = ColumnRequirement.OptionalReadOnly,
                 },
                 new ColumnInfo
                 {

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -63,7 +61,7 @@ namespace OpenTNF.Library.Model
 
     public class TnfChangeTransactionManager : TableManager
     {
-        public static string TnfChangeTransactionTableName = "tnf_change_transaction";
+        public const string TnfChangeTransactionTableName = "tnf_change_transaction";
 
         public TnfChangeTransactionManager(GeoPackageDatabase db) : base(db, TnfChangeTransactionTableName, GetColumnInfos())
         {
@@ -101,7 +99,7 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "remark",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 }
             };
         }
@@ -112,7 +110,7 @@ namespace OpenTNF.Library.Model
                 {
                     tnfChangeTransaction.Oid,
                     tnfChangeTransaction.Name,
-                    tnfChangeTransaction.CreationTime.ToUniversalTime(),
+                    tnfChangeTransaction.CreationTime.ToDateTimeString(),
                     tnfChangeTransaction.Creator,
                     tnfChangeTransaction.Remark
                 });
@@ -134,7 +132,7 @@ namespace OpenTNF.Library.Model
                 {
                     tnfChangeTransaction.Oid,
                     tnfChangeTransaction.Name,
-                    tnfChangeTransaction.CreationTime.ToUniversalTime(),
+                    tnfChangeTransaction.CreationTime.ToDateTimeString(),
                     tnfChangeTransaction.Creator,
                     tnfChangeTransaction.Remark
                 });
@@ -151,7 +149,7 @@ namespace OpenTNF.Library.Model
 
             tnfChangeTransaction.Oid = reader["oid"].FromDbString();
             tnfChangeTransaction.Name = reader["name"].FromDbString();
-            tnfChangeTransaction.CreationTime = (DateTime) reader["creation_time"].ToDateTime();
+            tnfChangeTransaction.CreationTime = (DateTime)reader["creation_time"].ToDateTime();
             tnfChangeTransaction.Creator = reader["creator"].FromDbString();
             tnfChangeTransaction.Remark = reader["remark"].FromDbString();
 

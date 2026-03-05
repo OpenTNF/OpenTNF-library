@@ -49,7 +49,7 @@ namespace OpenTNF.Library.Model
     public class TnfSecondaryLrsIdentityManager : TableManager
     {
         private const string PrimaryKey = "lrs_oid, identity_property_oid";
-        public static string TnfSecondaryLrsIdentityTableName = "tnf_secondary_lrs_identity";
+        public const string TnfSecondaryLrsIdentityTableName = "tnf_secondary_lrs_identity";
 
         public TnfSecondaryLrsIdentityManager(GeoPackageDatabase db) : base(db, TnfSecondaryLrsIdentityTableName, GetColumnInfos(), PrimaryKey)
         {
