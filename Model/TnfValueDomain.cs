@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -19,6 +17,7 @@ namespace OpenTNF.Library.Model
         int? NrChar { get; set; }
     }
 
+    [Serializable]
     public class TnfValueDomain : ITnfValueDomain
     {
         public int Oid { get; set; }
@@ -109,6 +108,9 @@ namespace OpenTNF.Library.Model
                     "Point",
                     "LineString",
                     "Polygon",
+                    "MultiPoint",
+                    "MultiLineString",
+                    "MultiPolygon",
                     "BLOB"
                 };
             }
@@ -118,9 +120,9 @@ namespace OpenTNF.Library.Model
     public class TnfValueDomainManager : TableManager
     {
         private const string PrimaryKey = "oid, catalogue_oid";
-        public static string TnfValueDomainTableName = "tnf_value_domain";
+        public const string TnfValueDomainTableName = "tnf_value_domain";
 
-        public TnfValueDomainManager(GeoPackageDatabase db) : base(db, TnfValueDomainTableName, GetColumnInfos(),PrimaryKey)
+        public TnfValueDomainManager(GeoPackageDatabase db) : base(db, TnfValueDomainTableName, GetColumnInfos(), PrimaryKey)
         {
         }
 
@@ -177,40 +179,42 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "datatype",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "nr_dec",
-                    SqlType = "INT",
-                    DataType = Type.GetType("System.Int32")
+                    SqlType = "INTEGER",
+                    DataType = Type.GetType("System.Int32"),
                 },
                 new ColumnInfo
                 {
                     Name = "is_union",
-                    SqlType = "BIT",
+                    SqlType = "INTEGER",
                     DataType = Type.GetType("System.Boolean"),
-                    HandleMissing = true
+                    Requirement = ColumnRequirement.OptionalReadOnly,
                 },
                 new ColumnInfo
                 {
                     Name = "unit",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "nr_char",
-                    SqlType = "INT",
-                    DataType = Type.GetType("System.Int32")
+                    SqlType = "INTEGER",
+                    DataType = Type.GetType("System.Int32"),
                 },
             };
         }
 
         public void Add(TnfValueDomain tnfValueDomain)
         {
-            Add(new object[]
-                {
+            try
+            {
+                Add(new object[]
+                    {
                     tnfValueDomain.Oid,
                     tnfValueDomain.CatalogueOid,
                     tnfValueDomain.ValueDomainType,
@@ -222,7 +226,12 @@ namespace OpenTNF.Library.Model
                     tnfValueDomain.IsUnion,
                     tnfValueDomain.Unit,
                     tnfValueDomain.NrChar
-                });
+                    });
+            }
+            catch (Exception ex)
+            {
+                throw new OpenTnfException($"Error when adding value domain '{tnfValueDomain.Oid}' in catalogue '{tnfValueDomain.CatalogueOid}': {ex.Message}", ex);
+            }
         }
 
         public TnfValueDomain Get(int oid, int catalogueOid)
@@ -279,7 +288,7 @@ namespace OpenTNF.Library.Model
         }
 
         /// <summary>
-        /// Use this function to receive an oid that is not currently in use for a value domain in the data catalogue.
+        /// Use this function to receive an oid that is not currently in use for a value domain in the feature catalogue.
         /// </summary>
         /// <param name="catalogueOid"></param>
         /// <returns></returns>
@@ -291,9 +300,9 @@ namespace OpenTNF.Library.Model
         }
 
         /// <summary>
-        /// Get all value domains in a data catalogue, including historical and future
+        /// Get all value domains in a feature catalogue, including historical and future
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <returns></returns>
         public List<TnfValueDomain> GetAll(int catalogueOid)
         {
@@ -301,9 +310,9 @@ namespace OpenTNF.Library.Model
         }
 
         /// <summary>
-        /// Get all value domains in a data catalogue that are valid during a certain time interval
+        /// Get all value domains in a feature catalogue that are valid during a certain time interval
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <param name="fromDate">Start date of the interval (inclusive)</param>
         /// <param name="toDate">End date of the interval (exclusive)</param>
         /// <returns></returns>
@@ -332,6 +341,34 @@ namespace OpenTNF.Library.Model
             }
 
             return valueDomains;
+        }
+
+        public void ChangeCatalogueOid(int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText = $"UPDATE {TnfValueDomainTableName} SET catalogue_oid = {newOid} WHERE catalogue_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangeOid(int catalogueOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText = $"UPDATE {TnfValueDomainTableName} SET oid = {newOid} " +
+                                      $"WHERE catalogue_oid = '{catalogueOid}' AND oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void DeleteLeftOverValueDomainForCatalogue(int catalogueOid)
+        {
+            using (var deleteCommand = Db.Command)
+            {
+                deleteCommand.CommandText = $"DELETE FROM tnf_value_domain WHERE catalogue_oid = {catalogueOid}";
+                deleteCommand.ExecuteNonQuery();
+            }
         }
     }
 }

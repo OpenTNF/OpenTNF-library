@@ -1,11 +1,9 @@
-﻿using System.Diagnostics;
-using System.IO;
-using System;
-using System.Data;
-using System.Data.SQLite;
-using System.Collections;
+﻿using log4net;
 using OpenTNF.Library.Model;
 using OpenTNF.Library.Properties;
+using System.Collections;
+using System.Data;
+using System.Data.SQLite;
 
 namespace OpenTNF.Library
 {
@@ -17,33 +15,48 @@ namespace OpenTNF.Library
 
     public class GeoPackageDatabase : IDisposable
     {
+        // These constants are set in the database header for created files
+        private const int DbHeaderAppicationId = 0x47504B47; // GPKG
+        private const int DbHeaderUserVersion = 10100; // GeoPackage version: 1.1.0
+
         private readonly IDbConnection m_connection;
         private IDbTransaction m_transaction;
         private readonly string m_filename;
-        private int? m_srid;
+        private readonly ILog m_logger;
+        private int? m_crs;
+
         public bool HasTopologyLevel { get; private set; }
+
+        public bool RequireZ
+        {
+            get; private set;
+        }
+
+        public bool RequireM
+        {
+            get; private set;
+        }
 
         readonly Hashtable m_tableManagers = new Hashtable();
 
-        public int Srid
+        public int? Crs
         {
             get
             {
-                if (!m_srid.HasValue)
-                {
-                    OpenGeoPackageDatabase();
-                }
-                // ReSharper disable once PossibleInvalidOperationException
-                // Kontrolleras i OpenGeoPackageDatabase
-                return m_srid.Value;
+                return m_crs;
             }
         }
 
         public GeoPackageDatabase(string filename)
         {
-            SQLiteInteropLoader.LoadSQLiteInterop();
             m_filename = filename;
-            m_connection = new SQLiteConnection("Data Source=" + HandleUncPath(m_filename) + ";Version=3;New=True;Compress=True;");
+            m_connection = new SQLiteConnection(SQLiteConnectionsStringHandler.GetSQLiteConnectionString(HandleUncPath(m_filename)));
+        }
+        public GeoPackageDatabase(string filename, ILog logger)
+        {
+            m_logger = logger;
+            m_filename = filename;
+            m_connection = new SQLiteConnection(SQLiteConnectionsStringHandler.GetSQLiteConnectionString(HandleUncPath(m_filename)));
         }
 
         public T GetTableManager<T>() where T : TableManager
@@ -143,20 +156,19 @@ namespace OpenTNF.Library
                     DataTable dt = rdr.GetSchemaTable();
                     foreach (DataRow row in dt.Rows)
                     {
-                        if (columnName.ToLower() == row["ColumnName"].ToString().ToLower())
+                        if (columnName.Equals(row["ColumnName"].ToString(), StringComparison.OrdinalIgnoreCase))
                         {
                             return true;
                         }
                     }
-                    
+
                 }
             }
             return false;
         }
-
         public enum TnfExtenttype { Node = 1, PointOnRefLink = 4, SegmentOnRefLink = 8, Road = 16, Turn = 64, RoadWithHost = 256 };
         public enum TnfAttributeformat { Text, Binary };
-        
+
         public class InsertItem
         {
             public string Name;
@@ -174,26 +186,13 @@ namespace OpenTNF.Library
         /// <summary>
         /// Creates a GeoPackage database with the OpenTNF extension.
         /// </summary>
-        /// <param name="srid">Default SRS ID.</param>
-        /// <param name="gtransSystem">The name identifying the coordinate system for GTrans coordinate transformations.</param>
-        /// <param name="datasetIdentifier">
-        /// Identifier of the creator of the dataset. 
-        /// Will be stored in the metadata key 'TNF_DATASET_IDENTIFIER'.
-        /// </param>
-        /// <param name="dataSetType">
-        /// A <see cref="DataSetType"/> declaring what type of dataset the database contains.
-        /// Will be stored in the metadata key 'TNF_DATASET_TYPE'.
-        /// </param>
-        /// <param name="viewDate">The view date of the dataset. If set, it will be stored in the metadata key 'TNF_VIEW_DATE'.</param>
-        /// <param name="hasTopologyLevel">If set, will create columns in tnf_link to store topology level information.</param>
-        /// <param name="createTables">If set, create all OpenTNF tables. If not set, only create OpenTNF tables when inserting data.</param>
-        /// <param name="spatialRefSysUrlFormat">Spatial reference system information will be automatically downloaded from the given URL.</param>
-        public bool CreateGeoPackageDatabase(int srid, string gtransSystem, string datasetIdentifier, DataSetType dataSetType, DateTime? viewDate,
-            bool hasTopologyLevel = false, bool createTables = false, string spatialRefSysUrlFormat = GpkgSpatialRefSysManager.DefaultSpatialRefSysUrlFormat)
+        public bool CreateGeoPackageDatabase(CreateGeoPackageDatabaseParameters parameters)
         {
-            HasTopologyLevel = hasTopologyLevel;
-            m_srid = srid;
-
+            m_logger?.Debug("Into CreateGeoPackageDatabase");
+            HasTopologyLevel = parameters.HasTopologyLevel;
+            m_crs = parameters.Crs;
+            RequireM = !parameters.ExcludeM;
+            RequireZ = !parameters.ExcludeZ;
             if (File.Exists(m_filename))
             {
                 try
@@ -205,49 +204,154 @@ namespace OpenTNF.Library
                     return false;
                 }
             }
-            
-            File.WriteAllBytes(m_filename, Resource.origin);
 
-            OpenGeoPackageDatabase();
+            m_logger?.Debug("OpenConnection");
+            OpenConnection();
 
+            bool shallCommit = false;
+            if (!InTransaction())
+            {
+                m_logger?.Debug("BeginTransaction");
+                BeginTransaction();
+                shallCommit = true;
+            }
+            m_logger?.Debug("SetDatabaseHeaders");
+            SetDatabaseHeaders();
+            m_logger?.Debug("CreateGpkgTables");
+            CreateGpkgTables();
+
+            m_logger?.Debug("TnfMetadat");
             var tnfMetadataManager = GetTableManager<TnfMetadataManager>();
 
-            tnfMetadataManager.Add(new TnfMetadata {MetaKey = "TNF_VERSION", MetaValue = Resource.OpenTNFVersion});
-            tnfMetadataManager.Add(new TnfMetadata {MetaKey = "TNF_DATASET_IDENTIFIER", MetaValue = datasetIdentifier});
+            tnfMetadataManager.Add(new TnfMetadata { MetaKey = "TNF_VERSION", MetaValue = Resource.OpenTNFVersion });
+            tnfMetadataManager.Add(new TnfMetadata { MetaKey = "TNF_DATASET_IDENTIFIER", MetaValue = parameters.DatasetIdentifier });
             tnfMetadataManager.Add(new TnfMetadata
-                {
-                    MetaKey = "TNF_DATASET_TIMESTAMP",
-                    MetaValue = DateTime.Now.ToString("O")
-                });
+            {
+                MetaKey = "TNF_DATASET_TIMESTAMP",
+                MetaValue = DateTime.Now.ToDateTimeString()
+            });
             tnfMetadataManager.Add(new TnfMetadata
             {
                 MetaKey = "TNF_VIEW_DATE",
-                MetaValue = viewDate?.ToString("O") ?? string.Empty
+                MetaValue = parameters.ViewDate.ToDateString() ?? string.Empty
             });
-            tnfMetadataManager.Add(new TnfMetadata {MetaKey = "TNF_CRS_NAME", MetaValue = "EPSG:" + srid});
+            tnfMetadataManager.Add(new TnfMetadata { MetaKey = "TNF_CRS_NAME", MetaValue = "EPSG:" + parameters.Crs });
             tnfMetadataManager.Add(new TnfMetadata
             {
                 MetaKey = "TNF_DATASET_TYPE",
-                MetaValue = dataSetType.ToString().ToUpper()
+                MetaValue = parameters.DataSetType.ToString().ToUpper()
             });
-            tnfMetadataManager.Add(new TnfMetadata {MetaKey = "TNF_SPATIAL_ATTRIBUTE_ENCODING", MetaValue = Resource.SpatialAttributeEncoding});
-            if (gtransSystem != null)
-            {
-                tnfMetadataManager.Add(new TnfMetadata {MetaKey = "GT_COORD_SYSTEM_ID", MetaValue = gtransSystem});
-            }
-            if (createTables)
+            tnfMetadataManager.Add(new TnfMetadata { MetaKey = "TNF_SPATIAL_ATTRIBUTE_ENCODING", MetaValue = Resource.SpatialAttributeEncoding });
+            if (parameters.CreateTables)
             {
                 CreateAllTables();
             }
+            m_logger?.Debug("GpkgContents");
             var gpkgContentsManager = GetTableManager<GpkgContentsManager>();
-            gpkgContentsManager.UpdateSrid(srid);
+            gpkgContentsManager.UpdateSrsId(parameters.Crs);
 
             var gpkgGeometryColumnsManager = GetTableManager<GpkgGeometryColumnsManager>();
-            gpkgGeometryColumnsManager.UpdateSrid(srid);
-
+            gpkgGeometryColumnsManager.UpdateSrsId(parameters.Crs);
+            m_logger?.Debug("GpkgSpatialRefSys");
             var gpkgSpatialRefSysManager = GetTableManager<GpkgSpatialRefSysManager>();
-            gpkgSpatialRefSysManager.AddOrUpdateFromUrl(spatialRefSysUrlFormat ?? GpkgSpatialRefSysManager.DefaultSpatialRefSysUrlFormat, srid);
+            gpkgSpatialRefSysManager.AddOrUpdateFromUrl(parameters.SpatialRefSysUrlFormat, parameters.Crs);
+            m_logger?.Debug("CheckSrsId");
+            CheckSrsId();
+            if (shallCommit)
+            {
+                m_logger?.Debug("EndTransactionCommit");
+                EndTransactionCommit();
+            }
             return true;
+        }
+
+        private void SetDatabaseHeaders()
+        {
+            using (IDbCommand cmd = m_connection.CreateCommand())
+            {
+                cmd.CommandText = $"PRAGMA main.application_id = {DbHeaderAppicationId}";
+                cmd.ExecuteNonQuery();
+                cmd.CommandText = $"PRAGMA main.user_version = {DbHeaderUserVersion}";
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>
+        /// Creates all needed tables for a Geopackage-file.
+        /// </summary>
+        public void CreateGpkgTables()
+        {
+            GetTableManager<GpkgContentsManager>();
+            var gpkgExtensionsManager = GetTableManager<GpkgExtensionsManager>();
+            gpkgExtensionsManager.Add(new GpkgExtension
+            {
+                ExtensionName = "triona_opentnf",
+                Definition = "http://opentnf.org/geopackage",
+                Scope = "read-write"
+            });
+            GetTableManager<GpkgGeometryColumnsManager>();
+            GetTableManager<GpkgMetadataManager>();
+            GetTableManager<GpkgMetadataReferenceManager>();
+            var gpkgSpatialRefSysManager = GetTableManager<GpkgSpatialRefSysManager>();
+            var spatialRefSystems = new[]
+            {
+                new GpkgSpatialRefSys
+                {
+                    SrsName = "Undefined cartesian SRS",
+                    SrsId = -1,
+                    Organization = "NONE",
+                    OrganizationCoordsysId = -1,
+                    Definition = "undefined",
+                    Description = "undefined cartesian coordinate reference system"
+                },
+                new GpkgSpatialRefSys
+                {
+                    SrsName = "Undefined geographic SRS",
+                    SrsId = 0,
+                    Organization = "NONE",
+                    OrganizationCoordsysId = 0,
+                    Definition = "undefined",
+                    Description = "undefined geographic coordinate reference system"
+                },
+                new GpkgSpatialRefSys
+                {
+                    SrsName = "SWEREF99 TM",
+                    SrsId = 3006,
+                    Organization = "EPSG",
+                    OrganizationCoordsysId = 3006,
+                    Definition = "PROJCS[\"SWEREF99 TM\",GEOGCS[\"SWEREF99\",DATUM[\"SWEREF99\",SPHEROID[\"GRS 1980\",6378137,298.257222101,AUTHORITY[\"EPSG\",\"7019\"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[\"EPSG\",\"6619\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4619\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",15],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AUTHORITY[\"EPSG\",\"3006\"]]",
+                },
+                new GpkgSpatialRefSys
+                {
+                    SrsName = "SWEREF99 18 00",
+                    SrsId = 3011,
+                    Organization = "EPSG",
+                    OrganizationCoordsysId = 3011,
+                    Definition = "PROJCS[\"SWEREF99 18 00\",GEOGCS[\"SWEREF99\",DATUM[\"SWEREF99\",SPHEROID[\"GRS 1980\",6378137,298.257222101,AUTHORITY[\"EPSG\",\"7019\"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[\"EPSG\",\"6619\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.01745329251994328,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4619\"]],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",18],PARAMETER[\"scale_factor\",1],PARAMETER[\"false_easting\",150000],PARAMETER[\"false_northing\",0],AUTHORITY[\"EPSG\",\"3011\"],AXIS[\"y\",EAST],AXIS[\"x\",NORTH]]",
+                },
+                new GpkgSpatialRefSys
+                {
+                    SrsName = "WGS 84 geodetic",
+                    SrsId = 4326,
+                    Organization = "EPSG",
+                    OrganizationCoordsysId = 4326,
+                    Definition = "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]",
+                    Description = "longitude/latitude coordinates in decimal degrees on the WGS 84 spheroid"
+                },
+                new GpkgSpatialRefSys
+                {
+                    SrsName = "ETRS89 / UTM zone 33N",
+                    SrsId = 25833,
+                    Organization = "EPSG",
+                    OrganizationCoordsysId = 25833,
+                    Definition = "PROJCS[\"ETRS89 / UTM zone 33N\",GEOGCS[\"ETRS89\",DATUM[\"European_Terrestrial_Reference_System_1989\",SPHEROID[\"GRS 1980\",6378137,298.257222101,AUTHORITY[\"EPSG\",\"7019\"]],AUTHORITY[\"EPSG\",\"6258\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.01745329251994328,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4258\"]],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",15],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],AUTHORITY[\"EPSG\",\"25833\"],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+                }
+            };
+            foreach (var refSys in spatialRefSystems)
+            {
+                gpkgSpatialRefSysManager.Add(refSys);
+            }
+
         }
 
         /// <summary>
@@ -259,10 +363,9 @@ namespace OpenTNF.Library
         /// </param>
         public void CreateAllTables(bool? hasTopologyLevel = null)
         {
-            OpenGeoPackageDatabase(hasTopologyLevel);
+            CheckLinkHasTopologyLevel(hasTopologyLevel);
             GetTableManager<TnfNetworkManager>();
             GetTableManager<TnfNetworkReferenceManager>();
-            GetTableManager<TnfDirectLocationReferenceManager>();
 
             GetTableManager<TnfLinkSequenceManager>();
             GetTableManager<TnfLinkManager>();
@@ -283,6 +386,7 @@ namespace OpenTNF.Library
 
             GetTableManager<TnfChangeTransactionManager>();
             GetTableManager<TnfChangeManager>();
+            GetTableManager<TnfAffectedNetworkElementManager>();
 
             GetTableManager<TnfTopologyLevelManager>();
 
@@ -291,27 +395,44 @@ namespace OpenTNF.Library
             GetTableManager<TnfTaskEditableTypeManager>();
 
             GetTableManager<TnfMetadataManager>();
+
+            GetTableManager<TnfCatalogueTagManager>();
+        }
+
+        public void CreateForeignKeyIndexes()
+        {
+            GetTableManager<TnfNetworkReferenceManager>().CreateIndices();
+            GetTableManager<TnfPropertyManager>().CreateIndices();
+            GetTableManager<TnfLinkManager>().CreateIndices();
+            GetTableManager<TnfConnectionPortManager>().CreateIndices();
         }
 
         public void OpenGeoPackageDatabase(bool? hasTopologyLevel = null)
         {
             OpenConnection();
+            CheckSrsId();
+            CheckLinkHasTopologyLevel(hasTopologyLevel);
+        }
 
+        private void CheckSrsId()
+        {
             using (IDbCommand cmd = m_connection.CreateCommand())
             {
-                cmd.CommandText = String.Format("SELECT table_name, srs_id FROM {0} WHERE LOWER(table_name) = '{1}' OR LOWER(table_name) = '{2}'",
+                cmd.CommandText = string.Format("SELECT table_name, srs_id FROM {0} WHERE LOWER(table_name) = '{1}' OR LOWER(table_name) = '{2}'",
                     GpkgGeometryColumnsManager.GpkgGeometryColumnsTableName, TnfLinkSequenceManager.TnfLinkSequenceTableName.ToLower(), TnfNodeManager.TnfNodeTableName.ToLower());
 
-                int? linkSrsId=null;
-                int? nodeSrsId=null;
+                int? linkSequenceSrsId = null;
+                int? nodeSrsId = null;
+                bool tablesExist = false;
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
                     {
+                        tablesExist = true;
                         string tableName = reader["table_name"].FromDbString();
                         if (tableName.ToLower().Equals(TnfLinkSequenceManager.TnfLinkSequenceTableName.ToLower()))
                         {
-                            linkSrsId = reader["srs_id"].ToInt32();
+                            linkSequenceSrsId = reader["srs_id"].ToInt32();
                         }
                         else if (tableName.ToLower().Equals(TnfNodeManager.TnfNodeTableName.ToLower()))
                         {
@@ -320,17 +441,29 @@ namespace OpenTNF.Library
                     }
                 }
 
-                if (!linkSrsId.HasValue || !nodeSrsId.HasValue)
+                if (!tablesExist)
                 {
-                    throw new OpenTnfException(Resources.OpenTnfSridMissing);
-                }
-                if (linkSrsId.Value != nodeSrsId.Value)
-                {
-                    throw new OpenTnfException(Resources.OpenTnfDatabaseHasMoreThanOneSrid, String.Format("tnf_link={0}, tnf_node={1}", linkSrsId, nodeSrsId));
+                    return;
                 }
 
-                m_srid = linkSrsId.Value;
+                if (!linkSequenceSrsId.HasValue || !nodeSrsId.HasValue)
+                {
+                    m_crs = null;
+                    return;
+                }
+                if (linkSequenceSrsId.Value != nodeSrsId.Value)
+                {
+                    throw new OpenTnfException(Resources.OpenTnfDatabaseHasMoreThanOneSrsId, string.Format("tnf_link={0}, tnf_node={1}", linkSequenceSrsId, nodeSrsId));
+                }
 
+                m_crs = linkSequenceSrsId.Value;
+            }
+        }
+
+        private void CheckLinkHasTopologyLevel(bool? hasTopologyLevel)
+        {
+            using (IDbCommand cmd = m_connection.CreateCommand())
+            {
                 cmd.CommandText = string.Format("PRAGMA table_info({0});", TnfLinkManager.TnfLinkTableName);
                 bool tnfLinkTableExists = false;
                 bool tnfLinkHasTopologyLevels = false;
@@ -363,8 +496,14 @@ namespace OpenTNF.Library
         {
             if (m_connection != null && m_connection.State != ConnectionState.Open)
             {
-                m_connection.Open();                
+                m_connection.Open();
             }
+        }
+
+        public void DisableForeignKeysConstraints()
+        {
+            OpenConnection();
+            ExecuteNonQuery("PRAGMA foreign_keys = OFF");
         }
 
         public void EnableForeignKeysConstraints()
@@ -415,6 +554,11 @@ namespace OpenTNF.Library
             return path;
         }
 
+        internal void LogInfo(string message)
+        {
+            m_logger?.Info(message);
+        }
+
         #region IDisposable Members
 
         public void Dispose()
@@ -422,15 +566,12 @@ namespace OpenTNF.Library
             foreach (DictionaryEntry entry in m_tableManagers)
             {
                 var tableManager = entry.Value as TableManager;
-
-                if (tableManager != null)
-                {
-                    tableManager.Dispose();
-                }
+                tableManager?.Dispose();
             }
 
             EndTransactionAbort();
             CloseConnection();
+            GC.SuppressFinalize(this);
         }
 
         #endregion

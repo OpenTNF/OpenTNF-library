@@ -22,7 +22,7 @@ namespace OpenTNF.Library.Model
     public class TnfToDoListMessageManager : TableManager
     {
         private const string PrimaryKey = "oid";
-        public static string TnfToDoListMessageTableName = "tnf_todo_list_message";
+        public const string TnfToDoListMessageTableName = "tnf_todo_list_message";
 
         public TnfToDoListMessageManager(GeoPackageDatabase db) : base(db, TnfToDoListMessageTableName, GetColumnInfos(),PrimaryKey)
         {
@@ -56,7 +56,7 @@ namespace OpenTNF.Library.Model
                 new ColumnInfo
                 {
                     Name = "severity",
-                    SqlType = "Integer NOT NULL",
+                    SqlType = "INTEGER NOT NULL",
                     DataType = Type.GetType("System.Int32")
                 },
                 new ColumnInfo

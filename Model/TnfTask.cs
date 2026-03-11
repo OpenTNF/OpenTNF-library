@@ -8,7 +8,7 @@ namespace OpenTNF.Library.Model
     {
         string Oid { get; }
         string ExternalId { get; }
-        int? AreaOid { get; }
+        string AreaOid { get; }
         string TaskType { get; }
         int? EditableNetwork { get; }
     }
@@ -17,14 +17,19 @@ namespace OpenTNF.Library.Model
     {
         public string Oid { get; set; }
         public string ExternalId { get; set; }
-        public int? AreaOid { get; set; }
+        public string AreaOid { get; set; }
         public string TaskType { get; set; }
         public int? EditableNetwork { get; set; }
     }
 
     public class TnfTaskManager : TableManager
     {
-        public static string TnfTaskTableName = "tnf_task";
+        public const string TnfTaskTableName = "tnf_task";
+        public static string OidFieldName= "oid";
+        public static string ExternalIdFieldName = "external_id";
+        public static string AreaOidFieldName = "area_oid";
+        public static string TaskTypeFieldName = "task_type";
+        public static string EditableNetworkFieldName = "editable_network";
 
         public TnfTaskManager(GeoPackageDatabase db) : base(db, TnfTaskTableName, GetColumnInfos())
         {
@@ -116,7 +121,7 @@ namespace OpenTNF.Library.Model
             TnfTask tnfTask = new TnfTask();
             tnfTask.Oid = reader["oid"].FromDbString();
             tnfTask.ExternalId = reader["external_id"].FromDbString();
-            tnfTask.AreaOid = reader["area_oid"].ToInt32();
+            tnfTask.AreaOid = reader["area_oid"].FromDbString();
             tnfTask.TaskType = reader["task_type"].FromDbString();
             tnfTask.EditableNetwork = reader["editable_network"].ToInt32();
             return tnfTask;

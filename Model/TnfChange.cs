@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using OpenTNF.Library;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -25,7 +22,14 @@ namespace OpenTNF.Library.Model
         public const string LINK_SEQUENCE = "LINK_SEQUENCE";
         public const string NODE = "NODE";
         public const string PROPERTY_OBJECT = "PROPERTY_OBJECT";
-            //PROPERTY_OBJECT CATALOGUE_OID PROPERTY_OBJECT_TYPE_OID Example: “PROPERTY_OBJECT/ABC123/12345”, where “ABC123” is the CATALOGUE_OID and “12345” is the OID of the transport property object type
+        // "PROPERTY_OBJECT/{CATALOGUE_OID}/{PROPERTY_OBJECT_TYPE_OID}"
+        // Example: "PROPERTY_OBJECT/ABC123/12345", where "ABC123" is the CATALOGUE_OID and "12345" is the OID of the property object type
+
+
+        public static string PropertyObjectClassId(int catalogueOid, int propetyObjectTypeOid)
+        {
+            return $"{PROPERTY_OBJECT}/{catalogueOid}/{propetyObjectTypeOid}";
+        }
     }
 
     public static class TnfChangeType
@@ -34,6 +38,7 @@ namespace OpenTNF.Library.Model
         public const int Add = 1;
         public const int Modify = 2;
         public const int Delete = 3;
+        public const int Append = 4;
     }
 
     public class TnfChange : ITnfChange
@@ -49,7 +54,7 @@ namespace OpenTNF.Library.Model
         public string NewVid { get; set; }
         public string CreatorId { get; set; }
         public string Remark { get; set; }
-        
+
         public override bool Equals(object obj)
         {
             if (obj is TnfChange)
@@ -93,7 +98,7 @@ namespace OpenTNF.Library.Model
 
         public override string ToString()
         {
-            return String.Format("TnfChange: Oid = {0}, ClassId = {1}, ChangeTransactionOid = {2}, OrderNumber = {3}, " +
+            return string.Format("TnfChange: Oid = {0}, ClassId = {1}, ChangeTransactionOid = {2}, OrderNumber = {3}, " +
                                  "ChangeType = {4}, ChangeReason = {5}, Timestamp = {6}, OldVid = {7}, NewVid = {8}, " +
                                  "CreatorId = {9}, Remark = {10}",
                 Oid,
@@ -112,10 +117,10 @@ namespace OpenTNF.Library.Model
 
     public class TnfChangeManager : TableManager
     {
-        private static readonly string[] m_primaryKey = new string[] {"change_transaction_oid", "order_number"};
-        public static string TnfChangeTableName = "tnf_change";
-        
-        public TnfChangeManager(GeoPackageDatabase db) : base(db, TnfChangeTableName, GetColumnInfos(), string.Join(",", m_primaryKey) )
+        private static readonly string[] m_primaryKey = new string[] { "change_transaction_oid", "order_number" };
+        public const string TnfChangeTableName = "tnf_change";
+
+        public TnfChangeManager(GeoPackageDatabase db) : base(db, TnfChangeTableName, GetColumnInfos(), string.Join(",", m_primaryKey))
         {
         }
 
@@ -123,7 +128,8 @@ namespace OpenTNF.Library.Model
         {
             return new[]
                 {
-                    String.Format("CONSTRAINT fk_tc_cto FOREIGN KEY (change_transaction_oid) REFERENCES {0}(oid)", TnfChangeTransactionManager.TnfChangeTransactionTableName)
+                    "CONSTRAINT fk_tc_cto FOREIGN KEY (change_transaction_oid) " +
+                    $"REFERENCES {TnfChangeTransactionManager.TnfChangeTransactionTableName}(oid)"
                 };
         }
 
@@ -177,25 +183,25 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "old_vid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "new_vid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "creator_id",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "remark",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 }
             };
         }
@@ -210,7 +216,7 @@ namespace OpenTNF.Library.Model
                     tnfChange.OrderNumber,
                     tnfChange.ChangeType,
                     tnfChange.ChangeReason,
-                    tnfChange.Timestamp.ToUniversalTime(),
+                    tnfChange.Timestamp.ToDateTimeString(),
                     tnfChange.OldVid,
                     tnfChange.NewVid,
                     tnfChange.CreatorId,
@@ -229,6 +235,67 @@ namespace OpenTNF.Library.Model
             return GetPage(ReadObject, offset, limit);
         }
 
+        public List<TnfChange> GetForTransaction(string transactionOid)
+        {
+            List<TnfChange> deleteChanges = new List<TnfChange>();
+            using (var command = Db.Command)
+            {
+                command.CommandText = $"SELECT * FROM {TnfChangeTableName} WHERE change_transaction_oid = '{transactionOid}'";
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        deleteChanges.Add(ReadObject(reader));
+                    }
+                }
+            }
+            return deleteChanges;
+        }
+
+        public List<TnfChange> GetForOid(string changeObjectOid)
+        {
+            List<TnfChange> deleteChanges = new List<TnfChange>();
+            using (var command = Db.Command)
+            {
+                command.CommandText = $"SELECT * FROM {TnfChangeTableName} WHERE oid = '{changeObjectOid}'";
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        deleteChanges.Add(ReadObject(reader));
+                    }
+                }
+            }
+            return deleteChanges;
+        }
+
+        public List<TnfChange> GetDeleteChangesForOids(List<string> changeObjectOids)
+        {
+            List<TnfChange> deleteChanges = new List<TnfChange>();
+            if (changeObjectOids.Count == 0)
+            {
+                return deleteChanges;
+            }
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"SELECT * FROM {TnfChangeTableName} " +
+                    $"WHERE change_type = {TnfChangeType.Delete} " +
+                    $"AND oid in ({string.Join(",", changeObjectOids.Select(oid => $"'{oid}'"))})";
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        deleteChanges.Add(ReadObject(reader));
+                    }
+                }
+            }
+            return deleteChanges;
+        }
+
         public int Update(TnfChange tnfChange)
         {
             return Update(new object[]
@@ -239,7 +306,7 @@ namespace OpenTNF.Library.Model
                     tnfChange.OrderNumber,
                     tnfChange.ChangeType,
                     tnfChange.ChangeReason,
-                    tnfChange.Timestamp.ToUniversalTime(),
+                    tnfChange.Timestamp.ToDateTimeString(),
                     tnfChange.OldVid,
                     tnfChange.NewVid,
                     tnfChange.CreatorId,
@@ -265,6 +332,25 @@ namespace OpenTNF.Library.Model
                 });
         }
 
+        public int DeleteForTransaction(string transactionOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText = $"DELETE FROM {TnfChangeTableName} WHERE change_transaction_oid = '{transactionOid}'";
+
+                return command.ExecuteNonQuery();
+            }
+        }
+
+        public int DeleteForChangedObject(string changedObjectOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText = $"DELETE FROM {TnfChangeTableName} WHERE oid = '{changedObjectOid}'";
+
+                return command.ExecuteNonQuery();
+            }
+        }
 
         private static TnfChange ReadObject(IDataRecord reader)
         {
@@ -273,8 +359,8 @@ namespace OpenTNF.Library.Model
             tnfChange.Oid = reader["oid"].FromDbString();
             tnfChange.ClassId = reader["class_id"].FromDbString();
             tnfChange.ChangeTransactionOid = reader["change_transaction_oid"].FromDbString();
-            tnfChange.OrderNumber = (Int32)reader["order_number"].ToInt32();
-            tnfChange.ChangeType = (Int32)reader["change_type"].ToInt32();
+            tnfChange.OrderNumber = (int)reader["order_number"].ToInt32();
+            tnfChange.ChangeType = (int)reader["change_type"].ToInt32();
             tnfChange.ChangeReason = reader["change_reason"].FromDbString();
             tnfChange.Timestamp = (DateTime)reader["timestamp"].ToDateTime();
             tnfChange.OldVid = reader["old_vid"].FromDbString();

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Net;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -12,7 +9,7 @@ namespace OpenTNF.Library.Model
         public string Organization { get; set; }
         public int OrganizationCoordsysId { get; set; }
         public string Definition { get; set; }
-        public string Description  { get; set; }
+        public string Description { get; set; }
 
         public override bool Equals(object obj)
         {
@@ -47,7 +44,7 @@ namespace OpenTNF.Library.Model
 
         public override string ToString()
         {
-            return String.Format("GpkgSpatialRefSys: SrsName = {0}, SrsId = {1}, Organization = {2}, OrganizationCoordsysId = {3}, " +
+            return string.Format("GpkgSpatialRefSys: SrsName = {0}, SrsId = {1}, Organization = {2}, OrganizationCoordsysId = {3}, " +
                                  "Definition = {4}, Description = {5}",
                 SrsName,
                 SrsId,
@@ -60,13 +57,15 @@ namespace OpenTNF.Library.Model
 
     public class GpkgSpatialRefSysManager : TableManager
     {
-        public const string DefaultSpatialRefSysUrlFormat = "http://spatialreference.org/ref/epsg/{0}/ogcwkt/";
+        public const string DefaultSpatialRefSysUrlFormat = "https://spatialreference.org/ref/epsg/{0}/ogcwkt/";
         private const string PrimaryKey = "srs_id";
-        public static string GpkgSpatialRefSysTableName = "gpkg_spatial_ref_sys";
+        public const string GpkgSpatialRefSysTableName = "gpkg_spatial_ref_sys";
 
-        public GpkgSpatialRefSysManager(GeoPackageDatabase db) : base(db, GpkgSpatialRefSysTableName, GetColumnInfos(),PrimaryKey)
+        public GpkgSpatialRefSysManager(GeoPackageDatabase db) : base(db, GpkgSpatialRefSysTableName, GetColumnInfos(), PrimaryKey)
         {
         }
+
+        protected override bool ShallCreateGpkgContentsEntry => false;
 
         private static ColumnInfo[] GetColumnInfos()
         {
@@ -152,15 +151,16 @@ namespace OpenTNF.Library.Model
             return Delete(new object[] { srsId });
         }
 
-        public void AddOrUpdateFromUrl(string urlFormat, int srid)
+        public void AddOrUpdateFromUrl(string urlFormat, int srsId)
         {
             bool isPlaceholder;
-            var refSys = TryDownload(urlFormat, srid, out isPlaceholder);
-            if (GetBySrsId(srid) == null)
+            var refSys = TryDownload(urlFormat, srsId, out isPlaceholder);
+
+            if (GetBySrsId(srsId) == null)
             {
                 Add(refSys);
             }
-            else if(!isPlaceholder) // only replace existing entry for non-placeholder instances.
+            else if (!isPlaceholder) // only replace existing entry for non-placeholder instances.
             {
                 Update(refSys);
             }
@@ -171,22 +171,22 @@ namespace OpenTNF.Library.Model
             var gpkgSpatialRefSys = new GpkgSpatialRefSys();
 
             gpkgSpatialRefSys.SrsName = reader["srs_name"].FromDbString();
-            gpkgSpatialRefSys.SrsId = (Int32) reader["srs_id"].ToInt32();
+            gpkgSpatialRefSys.SrsId = (Int32)reader["srs_id"].ToInt32();
             gpkgSpatialRefSys.Organization = reader["organization"].ToString();
-            gpkgSpatialRefSys.OrganizationCoordsysId = (Int32) reader["organization_coordsys_id"].ToInt32();
+            gpkgSpatialRefSys.OrganizationCoordsysId = (Int32)reader["organization_coordsys_id"].ToInt32();
             gpkgSpatialRefSys.Definition = reader["definition"].FromDbString();
             gpkgSpatialRefSys.Description = reader["description"].FromDbString();
 
             return gpkgSpatialRefSys;
         }
 
-        public static GpkgSpatialRefSys TryDownload(string urlFormat, int srid, out bool isPlaceholder)
+        public static GpkgSpatialRefSys TryDownload(string urlFormat, int srsId, out bool isPlaceholder)
         {
             isPlaceholder = false;
             string name, description, definition;
 
-            name = $"EPSG:{srid}";
-            if (urlFormat == null)
+            name = $"EPSG:{srsId}";
+            if (string.IsNullOrEmpty(urlFormat))
             {
                 definition = "N/A";
                 description = "No definition found.";
@@ -194,13 +194,11 @@ namespace OpenTNF.Library.Model
             }
             else
             {
-                string url = string.Format(urlFormat, srid);
+                string url = string.Format(urlFormat, srsId);
                 try
                 {
-                    using (var webClient = new WebClient())
-                    {
-                        definition = webClient.DownloadString(url);
-                    }
+                    using var httpClient = new HttpClient();
+                    definition = httpClient.GetStringAsync(url).Result;
                     string parsedName;
                     if (TryParseRefSysName(definition, out parsedName))
                     {
@@ -218,9 +216,9 @@ namespace OpenTNF.Library.Model
             return new GpkgSpatialRefSys
             {
                 SrsName = name,
-                SrsId = srid,
+                SrsId = srsId,
                 Organization = "EPSG",
-                OrganizationCoordsysId = srid,
+                OrganizationCoordsysId = srsId,
                 Definition = definition,
                 Description = description
             };
@@ -229,13 +227,13 @@ namespace OpenTNF.Library.Model
         private static bool TryParseRefSysName(string definition, out string name)
         {
             name = null;
-            int startIndex = definition.IndexOf("\"");
+            int startIndex = definition.IndexOf('\"');
             if (startIndex == -1)
             {
                 return false;
             }
             startIndex++;
-            int endIndex = definition.IndexOf("\"", startIndex);
+            int endIndex = definition.IndexOf('\"', startIndex);
             if (endIndex == -1)
             {
                 return false;
@@ -244,5 +242,9 @@ namespace OpenTNF.Library.Model
             return true;
         }
 
+        internal void AddOrUpdateFromUrl(object spatialRefSysUrlFormat, int? crs)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

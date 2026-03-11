@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace OpenTNF.Library.Model
+﻿namespace OpenTNF.Library.Model
 {
     public class GpkgMetadata
     {
@@ -52,10 +50,21 @@ namespace OpenTNF.Library.Model
 
     public class GpkgMetadataManager : TableManager
     {
-        public static string GpkgMetadataTableName = "gpkg_metadata";
+        public const string GpkgMetadataTableName = "gpkg_metadata";
 
         public GpkgMetadataManager(GeoPackageDatabase db) : base(db, GpkgMetadataTableName, GetColumnInfos(), null)
         {
+        }
+
+        protected override bool ShallCreateGpkgContentsEntry => false;
+
+        protected override string[] Triggers()
+        {
+            return new[]
+            {
+                @"CREATE TRIGGER 'gpkg_metadata_md_scope_update' BEFORE UPDATE OF 'md_scope' ON 'gpkg_metadata' FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'update on table gpkg_metadata violates constraint: md_scope must be one of undefined | fieldSession | collectionSession | series | dataset | featureType | feature | attributeType | attribute | tile | model | catalogue | schema | taxonomy software | service | collectionHardware | nonGeographicDataset | dimensionGroup') WHERE NOT(NEW.md_scope IN ('undefined','fieldSession','collectionSession','series','dataset', 'featureType','feature','attributeType','attribute','tile','model', 'catalogue','schema','taxonomy','software','service', 'collectionHardware','nonGeographicDataset','dimensionGroup')); END",
+                @"CREATE TRIGGER 'gpkg_metadata_md_scope_insert' BEFORE INSERT ON 'gpkg_metadata' FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'insert on table gpkg_metadata violates constraint: md_scope must be one of undefined | fieldSession | collectionSession | series | dataset | featureType | feature | attributeType | attribute | tile | model | catalogue | schema | taxonomy software | service | collectionHardware | nonGeographicDataset | dimensionGroup') WHERE NOT(NEW.md_scope IN ('undefined','fieldSession','collectionSession','series','dataset', 'featureType','feature','attributeType','attribute','tile','model', 'catalogue','schema','taxonomy','software','service', 'collectionHardware','nonGeographicDataset','dimensionGroup')); END"
+            };
         }
 
         private static ColumnInfo[] GetColumnInfos()

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -17,7 +15,7 @@ namespace OpenTNF.Library.Model
         public string Oid { get; set; }
         public string Vid { get; set; }
         public int CatalogueOid { get; set; }
-        public int PropertyObjectTypeOid { get; set; } 
+        public int PropertyObjectTypeOid { get; set; }
 
         public override bool Equals(object obj)
         {
@@ -58,7 +56,7 @@ namespace OpenTNF.Library.Model
 
     public class TnfPropertyObjectManager : TableManager
     {
-        public static string TnfPropertyObjectTableName = "tnf_property_object";
+        public const string TnfPropertyObjectTableName = "tnf_property_object";
 
         public TnfPropertyObjectManager(GeoPackageDatabase db) : base(db, TnfPropertyObjectTableName, GetColumnInfos())
         {
@@ -100,7 +98,7 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "vid",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
             };
         }
@@ -129,6 +127,52 @@ namespace OpenTNF.Library.Model
         public List<TnfPropertyObject> GetPage(int offset, int limit)
         {
             return GetPage(ReadPropertyObject, offset, limit);
+        }
+
+        public List<TnfPropertyObject> GetByPropertyObjectTypeOid(string catalogueOid, string propertyObjectsTypeOid)
+        {
+            var tnfList = new List<TnfPropertyObject>();
+
+            using (var command = Db.Command)
+            {
+                command.CommandText = string.Format(
+                        "select * from {0} where catalogue_oid = '{1}' and property_object_type_oid = '{2}' ",
+                        TnfPropertyObjectManager.TnfPropertyObjectTableName, catalogueOid, propertyObjectsTypeOid);
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        tnfList.Add(ReadPropertyObject(reader));
+                    }
+                }
+            }
+
+            return tnfList;
+        }
+
+        public List<string> GetExistingOids(List<string> oids)
+        {
+            List<string> existingOids = new List<string>();
+            if (oids.Count == 0)
+            {
+                return existingOids;
+            }
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"SELECT oid FROM {TnfPropertyObjectTableName} " +
+                    $"WHERE oid in ({string.Join(",", oids.Select(oid => $"'{oid}'"))})";
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        existingOids.Add(reader["oid"].FromDbString());
+                    }
+                }
+            }
+            return existingOids;
         }
 
         public int Update(TnfPropertyObject tnfPropertyObject)

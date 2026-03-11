@@ -1,20 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using OpenTNF.Library.Model;
 using System.Data;
-using System.Linq;
 using System.Text;
-using OpenTNF.Library.Model;
 
 namespace OpenTNF.Library
 {
-    public class ColumnInfo
-    {
-        public string Name { get; set; }
-        public string SqlType { get; set; }
-        public Type DataType { get; set; }
-        public bool HandleMissing { get; set; }
-    }
-
     public abstract class TableManager : IDisposable
     {
         private static readonly List<string> m_reservedWords = new List<string>
@@ -51,13 +40,14 @@ namespace OpenTNF.Library
         protected IDbCommand DeleteCmd = null;
         protected IDbCommand CountAllCmd = null;
         protected IDbCommand CountCmd = null;
+        protected IDbCommand IndexExistsCmd = null;
         private readonly string m_tableName;
         private string[] m_primaryKeyColumnNames;
-        private ColumnInfo[] m_columns;
-        private string[] m_missingColumns;
+        private readonly ColumnInfo[] m_missingNonEditableColumns = Array.Empty<ColumnInfo>();
+        private readonly ColumnInfo[] m_existingColumns;
 
         private const string DefaultPrimaryKey = "oid";
-        
+
         /// <summary>
         /// TableManager is a abstract class that is used to read and write tables in OpenTNF geopackage file.
         /// </summary>
@@ -70,79 +60,92 @@ namespace OpenTNF.Library
             Db = db;
             m_tableName = tableName;
             m_primaryKeyColumnNames = GetPrimaryKeyColumnNamesFromStr(primaryKey);
-            m_columns = columns;
-            InitColumns();
+            InitColumns(columns);
 
             if (!TableExists())
             {
-                CreateTable();
+                CreateTable(columns);
+                m_existingColumns = columns;
             }
             else
             {
-                HandleMissingColumns();
-            }
-        }
+                m_existingColumns = columns.Where(c => ColumnExists(c.Name)).ToArray();
+                var missingColumns = columns.Where(c => !m_existingColumns.Contains(c)).ToArray();
+                var missingMandatoryColumns = missingColumns.Where(c => c.Requirement == ColumnRequirement.Mandatory).ToArray();
+                if (missingMandatoryColumns.Length != 0)
+                {
+                    var missingColumnsText = string.Join(", ", missingMandatoryColumns.Select(c => c.Name));
+                    throw new OpenTnfException($"Mandatory columns are missing in table '{m_tableName}': {missingColumnsText}");
+                }
+                var existingColumnNames = m_existingColumns.Select(c => c.Name).ToArray();
 
-        private void HandleMissingColumns()
-        {
-            List<ColumnInfo> filteredColumnsList = new List<ColumnInfo>();
-            List<string> filteredPrimaryKeyList = new List<string>();
-            List<string> missingColumnsList = new List<string>();
-            bool missingColumnRemoved = false;
-            foreach (ColumnInfo columnInfo in m_columns)
-            {
-                if (columnInfo.HandleMissing && !ColumnExists(columnInfo.Name))
-                {
-                    missingColumnsList.Add(columnInfo.Name);
-                    missingColumnRemoved = true;
-                }
-                else
-                {
-                    if (m_primaryKeyColumnNames.Contains(columnInfo.Name))
-                    {
-                        filteredPrimaryKeyList.Add(columnInfo.Name);
-                    }
-                    filteredColumnsList.Add(columnInfo);
-                }
-            }
-            if (missingColumnRemoved)
-            {
-                m_columns = filteredColumnsList.ToArray();
-                m_primaryKeyColumnNames = filteredPrimaryKeyList.ToArray();
-                m_missingColumns = missingColumnsList.ToArray();
+                m_missingNonEditableColumns = missingColumns.Where(c => c.Requirement != ColumnRequirement.OptionalEditable).ToArray();
+                m_primaryKeyColumnNames = m_primaryKeyColumnNames.Where(n => existingColumnNames.Contains(n)).ToArray();
             }
         }
 
         private string[] GetPrimaryKeyColumnNamesFromStr(string primaryKey)
         {
-            if (String.IsNullOrEmpty(primaryKey)) return new string[] {};
-            return primaryKey.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries)
+            if (string.IsNullOrEmpty(primaryKey)) return [];
+            return primaryKey.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(r => r.Trim()).ToArray();
         }
 
         public string TableName { get { return m_tableName; } }
+
+        protected virtual bool ShallCreateGpkgContentsEntry => true;
 
         protected virtual string[] Constraints()
         {
             return null;
         }
 
-        protected virtual string[] Indices()
+        protected virtual IndexInfo[] Indices()
         {
             return null;
         }
 
-        protected string[] ColumnNames => m_columns.Select(c => c.Name).ToArray();
+        protected string[] ColumnNames => m_existingColumns.Select(c => c.Name).ToArray();
 
         public void CreateIndices()
         {
             if (Indices() != null)
             {
-                foreach (var index in Indices())
+                foreach (IndexInfo index in Indices())
                 {
-                    Db.ExecuteNonQuery(index);
+                    if (!IndexExists(index))
+                    {
+                        Db.LogInfo($"Creating index {TableName}.{index.Name}");
+                        Db.ExecuteNonQuery(index.Sql);
+                    }
                 }
             }
+        }
+
+        private bool IndexExists(IndexInfo index)
+        {
+            if (IndexExistsCmd == null)
+            {
+                IndexExistsCmd = Db.Command;
+                IndexExistsCmd.Transaction = Db.GetSqLiteTransaction();
+
+                string cmdText = "SELECT COUNT(*) FROM sqlite_master " +
+                                 "WHERE type = 'index' " +
+                                 $"AND lower(tbl_name) = lower('{TableName}') " +
+                                 "AND lower(name) = lower(@indexName)";
+                IndexExistsCmd.CommandText = cmdText;
+                IndexExistsCmd.Parameters.Add(new System.Data.SQLite.SQLiteParameter
+                {
+                    ParameterName = "@indexName",
+                    DbType = DbType.String
+                });
+                IndexExistsCmd.Prepare();
+            }
+
+            ((IDbDataParameter)IndexExistsCmd.Parameters["@indexName"]).Value = index.Name;
+
+
+            return IndexExistsCmd.ExecuteScalar().ToInt32() > 0;
         }
 
         protected virtual string[] Triggers()
@@ -150,9 +153,9 @@ namespace OpenTNF.Library
             return null;
         }
 
-        private void InitColumns()
+        private void InitColumns(ColumnInfo[] columns)
         {
-            foreach (ColumnInfo ci in m_columns)
+            foreach (ColumnInfo ci in columns)
             {
                 if (string.IsNullOrEmpty(ci.SqlType))
                 {
@@ -217,7 +220,7 @@ namespace OpenTNF.Library
                 case "System.String":
                     return DbType.String;
                 case "System.DateTime":
-                    return DbType.DateTime;
+                    return DbType.String; // In SQLite, All Date/DateTime values are stored internally as String
                 case "System.Int16":
                 case "System.Int32":
                 case "System.Int64":
@@ -238,10 +241,10 @@ namespace OpenTNF.Library
 
         protected void Add(object[] values)
         {
-            if (m_missingColumns != null)
+            if (m_missingNonEditableColumns.Length != 0)
             {
                 throw new OpenTnfException("Unable to add object because columns are missing in the table. " +
-                                           $"Missing columns: {string.Join(", ", m_missingColumns)}");
+                                           $"Missing columns: {string.Join(", ", m_missingNonEditableColumns.Select(c => c.Name))}");
             }
             if (InsertCmd == null)
             {
@@ -250,17 +253,17 @@ namespace OpenTNF.Library
                 var columnList = new List<string>();
                 var parameterList = new List<string>();
 
-                foreach (var column in m_columns)
+                foreach (var column in m_existingColumns)
                 {
                     columnList.Add(GetColumnName(column));
                     parameterList.Add("@" + column.Name);
 
                     InsertCmd.Parameters.Add(
                         new System.Data.SQLite.SQLiteParameter
-                            {
-                                ParameterName = "@" + column.Name,
-                                DbType = GetDbDataType(column)
-                            });
+                        {
+                            ParameterName = "@" + column.Name,
+                            DbType = GetDbDataType(column)
+                        });
                 }
 
                 string cmdtext = string.Format(
@@ -272,11 +275,9 @@ namespace OpenTNF.Library
                 InsertCmd.Prepare();
             }
 
-            for (int paramNo = 0; paramNo < m_columns.Length; paramNo++)
+            for (int paramNo = 0; paramNo < m_existingColumns.Length; paramNo++)
             {
-                var dbDataParameter = InsertCmd.Parameters[paramNo] as IDbDataParameter;
-
-                if (dbDataParameter != null)
+                if (InsertCmd.Parameters[paramNo] is IDbDataParameter dbDataParameter)
                 {
                     dbDataParameter.Value = values[paramNo] ?? DBNull.Value;
                 }
@@ -304,7 +305,7 @@ namespace OpenTNF.Library
                 var columnList = new List<string>();
                 var whereList = new List<string>();
 
-                foreach (ColumnInfo column in m_columns)
+                foreach (ColumnInfo column in m_existingColumns)
                 {
                     string columnName = GetColumnName(column);
                     columnList.Add(columnName);
@@ -315,10 +316,10 @@ namespace OpenTNF.Library
 
                         SelectCmd.Parameters.Add(
                             new System.Data.SQLite.SQLiteParameter
-                                {
-                                    ParameterName = "@" + column.Name,
-                                    DbType = GetDbDataType(column)
-                                });
+                            {
+                                ParameterName = "@" + column.Name,
+                                DbType = GetDbDataType(column)
+                            });
                     }
                 }
 
@@ -335,9 +336,7 @@ namespace OpenTNF.Library
             {
                 if (SelectCmd.Parameters.Count > paramNo)
                 {
-                    var dbDataParameter = SelectCmd.Parameters[paramNo] as IDbDataParameter;
-
-                    if (dbDataParameter != null)
+                    if (SelectCmd.Parameters[paramNo] is IDbDataParameter dbDataParameter)
                     {
                         dbDataParameter.Value = values[paramNo] ?? DBNull.Value;
                     }
@@ -356,30 +355,33 @@ namespace OpenTNF.Library
             return item;
         }
 
+        protected string GetExistingColumnNamesString()
+        {
+            string colStr = "";
+
+            foreach (var column in m_existingColumns)
+            {
+                colStr += GetColumnName(column) + ", ";
+            }
+
+            colStr = colStr.Remove(colStr.LastIndexOf(", ", StringComparison.Ordinal));
+            return colStr;
+        }
+
         protected List<T> Get<T>(Func<IDataReader, T> parameter, int limit)
         {
             if (SelectAllCmd == null)
             {
                 SelectAllCmd = Db.Command;
                 SelectAllCmd.Transaction = Db.GetSqLiteTransaction();
-                string colStr = "";
-
-                foreach (var column in m_columns)
-                {
-                    colStr += GetColumnName(column) + ", ";
-                }
-
-                colStr = colStr.Remove(colStr.LastIndexOf(", ", StringComparison.Ordinal));
-                string cmdtext = string.Format("SELECT {0} FROM {1} LIMIT @limit", colStr, TableName);
+                string cmdtext = string.Format("SELECT {0} FROM {1} LIMIT @limit", GetExistingColumnNamesString(), TableName);
                 SelectAllCmd.CommandText = cmdtext;
                 SelectAllCmd.Parameters.Add(
                     new System.Data.SQLite.SQLiteParameter { ParameterName = "@limit", DbType = DbType.Int64 });
                 SelectAllCmd.Prepare();
             }
 
-            var dbDataParameter = SelectAllCmd.Parameters[0] as IDbDataParameter;
-
-            if (dbDataParameter != null)
+            if (SelectAllCmd.Parameters[0] is IDbDataParameter dbDataParameter)
             {
                 dbDataParameter.Value = limit;
             }
@@ -404,7 +406,7 @@ namespace OpenTNF.Library
                 SelectPageCmd.Transaction = Db.GetSqLiteTransaction();
                 string colStr = "";
 
-                foreach (var column in m_columns)
+                foreach (var column in m_existingColumns)
                 {
                     colStr += GetColumnName(column) + ", ";
                 }
@@ -419,9 +421,8 @@ namespace OpenTNF.Library
                 SelectPageCmd.Prepare();
             }
 
-            var dbDataParameter = SelectPageCmd.Parameters[0] as IDbDataParameter;
 
-            if (dbDataParameter != null)
+            if (SelectPageCmd.Parameters[0] is IDbDataParameter dbDataParameter)
             {
                 dbDataParameter.Value = offset;
             }
@@ -434,24 +435,23 @@ namespace OpenTNF.Library
             }
 
             var list = new List<T>();
-            var reader = SelectPageCmd.ExecuteReader();
-
-            while (reader.Read())
+            using (var reader = SelectPageCmd.ExecuteReader())
             {
-                list.Add(parameter(reader));
+                while (reader.Read())
+                {
+                    list.Add(parameter(reader));
+                }
             }
-
-            reader.Close();
 
             return list;
         }
 
         protected int Update(object[] values)
         {
-            if (m_missingColumns != null)
+            if (m_missingNonEditableColumns.Length != 0)
             {
                 throw new OpenTnfException("Unable to update object because columns are missing in the table. " +
-                                           $"Missing columns: {string.Join(", ", m_missingColumns)}");
+                                           $"Missing columns: {string.Join(", ", m_missingNonEditableColumns.Select(c => c.Name))}");
             }
             if (UpdateCmd == null)
             {
@@ -460,7 +460,7 @@ namespace OpenTNF.Library
                 var setList = new List<string>();
                 var whereList = new List<string>();
 
-                foreach (var column in m_columns)
+                foreach (var column in m_existingColumns)
                 {
                     string columnName = GetColumnName(column);
 
@@ -475,10 +475,10 @@ namespace OpenTNF.Library
 
                     UpdateCmd.Parameters.Add(
                         new System.Data.SQLite.SQLiteParameter
-                            {
-                                ParameterName = "@" + column.Name,
-                                DbType = GetDbDataType(column)
-                            });
+                        {
+                            ParameterName = "@" + column.Name,
+                            DbType = GetDbDataType(column)
+                        });
                 }
 
                 string cmdtext = string.Format(
@@ -490,11 +490,9 @@ namespace OpenTNF.Library
                 UpdateCmd.Prepare();
             }
 
-            for (int paramNo = 0; paramNo < m_columns.Length; paramNo++)
+            for (int paramNo = 0; paramNo < m_existingColumns.Length; paramNo++)
             {
-                var dbDataParameter = UpdateCmd.Parameters[paramNo] as IDbDataParameter;
-
-                if (dbDataParameter != null)
+                if (UpdateCmd.Parameters[paramNo] is IDbDataParameter dbDataParameter)
                 {
                     dbDataParameter.Value = values[paramNo] ?? DBNull.Value;
                 }
@@ -510,10 +508,10 @@ namespace OpenTNF.Library
         /// <returns></returns>
         protected int Delete(object[] orderdPrimaryKeyValue)
         {
-            if (m_missingColumns != null)
+            if (m_missingNonEditableColumns.Length != 0)
             {
                 throw new OpenTnfException("Unable to delete object because columns are missing in the table. " +
-                                           $"Missing columns: {string.Join(", ", m_missingColumns)}");
+                                           $"Missing columns: {string.Join(", ", m_missingNonEditableColumns.Select(c => c.Name))}");
             }
             if (DeleteCmd == null)
             {
@@ -521,7 +519,7 @@ namespace OpenTNF.Library
                 DeleteCmd.Transaction = Db.GetSqLiteTransaction();
                 var whereList = new List<string>();
 
-                foreach (var column in m_columns)
+                foreach (var column in m_existingColumns)
                 {
                     if (m_primaryKeyColumnNames.Contains(column.Name))
                     {
@@ -529,10 +527,10 @@ namespace OpenTNF.Library
 
                         DeleteCmd.Parameters.Add(
                             new System.Data.SQLite.SQLiteParameter
-                                {
-                                    ParameterName = "@" + column.Name,
-                                    DbType = GetDbDataType(column)
-                                });
+                            {
+                                ParameterName = "@" + column.Name,
+                                DbType = GetDbDataType(column)
+                            });
                     }
                 }
 
@@ -544,11 +542,9 @@ namespace OpenTNF.Library
                 DeleteCmd.Prepare();
             }
 
-            for (int paramNo = 0; paramNo < orderdPrimaryKeyValue.Count(); paramNo++)
+            for (int paramNo = 0; paramNo < orderdPrimaryKeyValue.Length; paramNo++)
             {
-                var dbDataParameter = DeleteCmd.Parameters[paramNo] as IDbDataParameter;
-
-                if (dbDataParameter != null)
+                if (DeleteCmd.Parameters[paramNo] is IDbDataParameter dbDataParameter)
                 {
                     dbDataParameter.Value = orderdPrimaryKeyValue[paramNo] ?? DBNull.Value;
                 }
@@ -580,7 +576,7 @@ namespace OpenTNF.Library
                 CountCmd.Transaction = Db.GetSqLiteTransaction();
                 var whereList = new List<string>();
 
-                foreach (var column in m_columns)
+                foreach (var column in m_existingColumns)
                 {
                     if (m_primaryKeyColumnNames.Contains(column.Name))
                     {
@@ -603,11 +599,9 @@ namespace OpenTNF.Library
                 CountCmd.Prepare();
             }
 
-            for (int paramNo = 0; paramNo < values.Count(); paramNo++)
+            for (int paramNo = 0; paramNo < values.Length; paramNo++)
             {
-                var dbDataParameter = CountCmd.Parameters[paramNo] as IDbDataParameter;
-
-                if (dbDataParameter != null)
+                if (CountCmd.Parameters[paramNo] is IDbDataParameter dbDataParameter)
                 {
                     dbDataParameter.Value = values[paramNo] ?? DBNull.Value;
                 }
@@ -621,20 +615,22 @@ namespace OpenTNF.Library
         {
             string commandText = string.Format("SELECT name = '{0}' FROM sqlite_master WHERE type='table' AND name='{0}'", TableName);
 
-            return (Db.ExecuteScalar(commandText) != 0);
+            return Db.ExecuteScalar(commandText) != 0;
         }
 
 
-        private bool ColumnExists(string columnName)
+        protected bool ColumnExists(string columnName)
         {
             bool columnExists = false;
-            IDataReader reader = Db.ExecuteReader("PRAGMA table_info(" + TableName + ")");
-            while (reader.Read())
+            using (IDataReader reader = Db.ExecuteReader("PRAGMA table_info(" + TableName + ")"))
             {
-                string col = reader["name"].FromDbString();
-                if (string.Equals(col, columnName, StringComparison.InvariantCultureIgnoreCase))
+                while (reader.Read())
                 {
-                    columnExists = true;
+                    string col = reader["name"].FromDbString();
+                    if (string.Equals(col, columnName, StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        columnExists = true;
+                    }
                 }
             }
             return columnExists;
@@ -643,22 +639,22 @@ namespace OpenTNF.Library
         /// <summary>
         /// Creates the table
         /// </summary>
-        private void CreateTable()
+        private void CreateTable(ColumnInfo[] columns)
         {
             StringBuilder sbCommandColumns = new StringBuilder();
 
-            sbCommandColumns.Append(String.Join(String.Format(",{0}", Environment.NewLine), m_columns.Select(ConstructCreateTableCommandColumnRow).ToArray()));
+            sbCommandColumns.Append(string.Join(string.Format(",{0}", Environment.NewLine), columns.Select(ConstructCreateTableCommandColumnRow).ToArray()));
 
             if (Constraints() != null)
             {
-                sbCommandColumns.AppendFormat(",{0}{1}", Environment.NewLine, String.Join(String.Format(",{0}", Environment.NewLine), Constraints()));
+                sbCommandColumns.AppendFormat(",{0}{1}", Environment.NewLine, string.Join(string.Format(",{0}", Environment.NewLine), Constraints()));
             }
 
-            if (m_primaryKeyColumnNames.Count() > 1)
+            if (m_primaryKeyColumnNames.Length > 1)
             {
-                sbCommandColumns.AppendFormat(",{0}PRIMARY KEY({1})", Environment.NewLine, String.Join(",", m_primaryKeyColumnNames));
+                sbCommandColumns.AppendFormat(",{0}PRIMARY KEY({1})", Environment.NewLine, string.Join(",", m_primaryKeyColumnNames));
             }
-          
+
 
             string commandText = string.Format("CREATE TABLE {0} ({2}{1}{2})", TableName, sbCommandColumns, Environment.NewLine);
 
@@ -672,60 +668,93 @@ namespace OpenTNF.Library
                 }
             }
 
-            
-
-            CreateGeometryInfo();
+            if (ShallCreateGpkgContentsEntry)
+            {
+                CreateGpkgContentsAndGeometryColumnEntries(columns);
+            }
         }
 
         private string ConstructCreateTableCommandColumnRow(ColumnInfo col)
         {
             if (IsSingleColumnPrimaryKey(col))
             {
-                return String.Format(@"  {0} {1} PRIMARY KEY", GetColumnName(col), col.SqlType);
+                return string.Format(@"  {0} {1} PRIMARY KEY", GetColumnName(col), col.SqlType);
             }
-            return String.Format(@"  {0} {1}", GetColumnName(col), col.SqlType);
+            return string.Format(@"  {0} {1}", GetColumnName(col), col.SqlType);
         }
 
-        private void CreateGeometryInfo()
+        private static readonly string[] m_gpkgGeometryTypes =
         {
-            var geometryColumns = m_columns.Where(col => col.SqlType == "LineString" || col.SqlType == "Point" || col.SqlType == "Polygon").ToArray();
-            if (geometryColumns.Any())
-            {
-                var gpkgContentsManager = Db.GetTableManager<GpkgContentsManager>();
-                var gpkgGeometryColumnsManager = Db.GetTableManager<GpkgGeometryColumnsManager>();
+            "GEOMETRY",
+            "POINT",
+            "LINESTRING",
+            "POLYGON",
+            "MULTIPOINT",
+            "MULTILINESTRING",
+            "MULTIPOLYGON",
+            "GEOMETRYCOLLECTION"
+        };
 
+        private void CreateGpkgContentsAndGeometryColumnEntries(ColumnInfo[] columns)
+        {
+            var gpkgContentsManager = Db.GetTableManager<GpkgContentsManager>();
+            var gpkgGeometryColumnsManager = Db.GetTableManager<GpkgGeometryColumnsManager>();
+
+            ColumnInfo[] geometryColumns = columns
+                .Where(col => m_gpkgGeometryTypes.Any(geomType => string.Equals(col.SqlType, geomType, StringComparison.InvariantCultureIgnoreCase)))
+                .ToArray();
+            if (geometryColumns.Length > 0)
+            {
                 gpkgContentsManager.Add(
                     new GpkgContents
                     {
                         TableName = TableName,
-                        DataType = "features",
+                        DataType = GpkgContentsManager.DataTypeFeatures,
                         Identifier = TableName,
                         Description = TableName,
                         LastChange = DateTime.Now,
-                        SrsId = Db.Srid
+                        SrsId = Db.Crs
                     }
-                    );
-
-                foreach (ColumnInfo col in geometryColumns)
+                );
+                if (Db.Crs != null)
                 {
-                    gpkgGeometryColumnsManager.Add(
-                        new GpkgGeometryColumn
-                        {
-                            TableName = TableName,
-                            ColumnName = col.Name,
-                            GeometryTypeName = col.SqlType,
-                            SrsId = Db.Srid,
-                            Z = 2,
-                            M = 2
-                        }
+                    foreach (ColumnInfo col in geometryColumns)
+                    {
+                        short z = (short)((col.HasZ && Db.RequireZ) ? 1 : 0);
+                        short m = (short)((col.HasM && Db.RequireM) ? 1 : 0);
+                        gpkgGeometryColumnsManager.Add(
+                            new GpkgGeometryColumn
+                            {
+                                TableName = TableName,
+                                ColumnName = col.Name,
+                                GeometryTypeName = col.SqlType,
+                                SrsId = Db.Crs.Value,
+                                Z = z,
+                                M = m
+                            }
                         );
+                    }
                 }
+            }
+            else
+            {
+                gpkgContentsManager.Add(
+                    new GpkgContents
+                    {
+                        TableName = TableName,
+                        DataType = GpkgContentsManager.DataTypeAttributes,
+                        Identifier = TableName,
+                        Description = TableName,
+                        LastChange = DateTime.Now,
+                        SrsId = null
+                    }
+                );
             }
         }
 
         private bool IsSingleColumnPrimaryKey(ColumnInfo col)
         {
-            return m_primaryKeyColumnNames.Count() == 1 && string.Equals(m_primaryKeyColumnNames.Single(), col.Name, StringComparison.OrdinalIgnoreCase);
+            return m_primaryKeyColumnNames.Length == 1 && string.Equals(m_primaryKeyColumnNames.Single(), col.Name, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -733,11 +762,11 @@ namespace OpenTNF.Library
         /// </summary>
         public void ApplySpatialIndex()
         {
-            string commandText = String.Format("SELECT CreateSpatialIndex('{0}', 'CENTRE_LINE_GEOMETRY')",TnfLinkManager.TnfLinkTableName);
+            string commandText = string.Format("SELECT CreateSpatialIndex('{0}', 'CENTRE_LINE_GEOMETRY')", TnfLinkManager.TnfLinkTableName);
             Db.ExecuteNonQuery(commandText);
         }
 
-    
+
 
         public void Dispose()
         {
@@ -782,8 +811,19 @@ namespace OpenTNF.Library
                 CountCmd.Dispose();
                 CountCmd = null;
             }
-        }
 
-     
+            if (CountAllCmd != null)
+            {
+                CountAllCmd.Dispose();
+                CountAllCmd = null;
+            }
+
+            if (IndexExistsCmd != null)
+            {
+                IndexExistsCmd.Dispose();
+                IndexExistsCmd = null;
+            }
+            GC.SuppressFinalize(this);
+        }
     }
 }

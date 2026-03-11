@@ -1,13 +1,16 @@
-﻿using System;
-using System.Data;
+﻿using System.Data;
 using System.Globalization;
-using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace OpenTNF.Library
 {
-    public static class Extensions
+    internal static class Extensions
     {
+        // See http://www.geopackage.org/spec/, Table 1. GeoPackage Data Types
+        private const string GpkgDateFormat = "yyyy-MM-dd";
+        private const string GpkgDateTimeFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
+
         private static readonly uint[] Lookup32 = CreateLookup32();
 
         private static uint[] CreateLookup32()
@@ -80,6 +83,36 @@ namespace OpenTNF.Library
             }
 
             return null;
+        }
+
+        public static DateTime? ToUniversalDateTime(this object value)
+        {
+            return value?.ToDateTime()?.ToUniversalTime();
+        }
+
+        public static string ToDateTimeString(this DateTime? dateTimeVal)
+        {
+            return dateTimeVal?.ToDateTimeString();
+        }
+
+        public static string ToDateTimeString(this DateTime dateTimeVal)
+        {
+            return dateTimeVal.ToUniversalTime().ToString(GpkgDateTimeFormat);
+        }
+
+        public static string ToDateTimeUtcMidnightString(this DateTime? dateTimeVal)
+        {
+            return dateTimeVal?.ToDateTimeUtcMidnightString();
+        }
+
+        public static string ToDateTimeUtcMidnightString(this DateTime dateTimeVal)
+        {
+            return new DateTime(dateTimeVal.Year, dateTimeVal.Month, dateTimeVal.Day, 0, 0, 0, DateTimeKind.Utc).ToString(GpkgDateTimeFormat);
+        }
+
+        public static string ToDateString(this DateTime? dateTimeVal)
+        {
+            return dateTimeVal?.ToString(GpkgDateFormat);
         }
 
         public static double? ToDouble(this object value)

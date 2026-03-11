@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -52,7 +50,7 @@ namespace OpenTNF.Library.Model
 
     public class TnfNetworkManager : TableManager
     {
-        public static string TnfNetworkTableName = "tnf_network";
+        public const string TnfNetworkTableName = "tnf_network";
 
         public TnfNetworkManager(GeoPackageDatabase db) : base(db, TnfNetworkTableName, GetColumnInfos())
         {
@@ -78,7 +76,8 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "geographical_name",
                     SqlType = "TEXT NOT NULL",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
+                    Requirement = ColumnRequirement.OptionalReadOnly
                 }
             };
         }
@@ -124,7 +123,7 @@ namespace OpenTNF.Library.Model
 
             tnfNetwork.Oid = reader["oid"].ToInt();
             tnfNetwork.TypeOfTransport = reader["type_of_transport"].FromDbString();
-            tnfNetwork.GeographicalName = reader["geographical_name"].FromDbString();
+            tnfNetwork.GeographicalName = reader.ReadIfExists("geographical_name").FromDbString();
 
             return tnfNetwork;
         }

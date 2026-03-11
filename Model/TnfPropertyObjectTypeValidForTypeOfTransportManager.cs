@@ -105,5 +105,35 @@ namespace OpenTNF.Library.Model
                 idataReader[CatalogueOidColumnName].ToInt(),
                 idataReader[TypeOfTransportColumnName].ToString());
         }
+
+        public void ChangeCatalogueOid(int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {ValidForTypeOfTransportTableName} SET catalogue_oid = '{newOid}' WHERE catalogue_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangePropertyObjectTypeOid(int catalogueOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {ValidForTypeOfTransportTableName} SET property_object_type_oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{catalogueOid}' AND property_object_type_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void DeleteLeftOverPropertyObjectTypeValidForTypeOfTransportForCatalogue(int catalogueOid)
+        {
+            using (var deleteCommand = Db.Command)
+            {
+                deleteCommand.CommandText = $"DELETE FROM tnf_property_object_type_valid_for_type_of_transport WHERE catalogue_oid = {catalogueOid}";
+                deleteCommand.ExecuteNonQuery();
+            }
+        }
     }
 }

@@ -11,8 +11,8 @@ namespace OpenTNF.Library.Model
         int CatalogueOid { get; }
         int StructuredValueDomainOid { get; }
         int ValueDomainOid { get; }
-        int? MultiplicityMin { get; }
-        int? MultiplicityMax { get; }
+        int MultiplicityMin { get; }
+        int MultiplicityMax { get; }
         bool Mandatory { get; }
         string Name { get; }
         string Description { get; }
@@ -21,14 +21,15 @@ namespace OpenTNF.Library.Model
         DateTime? ValidTo { get; }
     }
 
+    [Serializable]
     public class TnfStructuredValueDomainPropertyType : ITnfStructuredValueDomainPropertyType
     {
         public int Oid { get; set; }
         public int CatalogueOid { get; set; }
         public int StructuredValueDomainOid { get; set; }
         public int ValueDomainOid { get; set; }
-        public int? MultiplicityMin { get; set; }
-        public int? MultiplicityMax { get; set; }
+        public int MultiplicityMin { get; set; }
+        public int MultiplicityMax { get; set; }
         public bool Mandatory { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
@@ -104,7 +105,7 @@ namespace OpenTNF.Library.Model
     public class TnfStructuredValueDomainPropertyTypeManager : TableManager
     {
         private const string PrimaryKey = "oid, catalogue_oid, structured_value_domain_oid";
-        public static string TnfStructuredValueDomainPropertyTableName = "tnf_structured_value_domain_property_type";
+        public const string TnfStructuredValueDomainPropertyTableName = "tnf_structured_value_domain_property_type";
 
         public TnfStructuredValueDomainPropertyTypeManager(GeoPackageDatabase db) : base(db, TnfStructuredValueDomainPropertyTableName, GetColumnInfos(),PrimaryKey)
         {
@@ -188,13 +189,13 @@ namespace OpenTNF.Library.Model
                 new ColumnInfo
                 {
                     Name = "valid_from",
-                    SqlType = "DATETIME",
+                    SqlType = "DATE",
                     DataType = Type.GetType("System.DateTime")
                 },
                 new ColumnInfo
                 {
                     Name = "valid_to",
-                    SqlType = "DATETIME",
+                    SqlType = "DATE",
                     DataType = Type.GetType("System.DateTime")
                 },
             };
@@ -202,21 +203,30 @@ namespace OpenTNF.Library.Model
 
         public void Add(TnfStructuredValueDomainPropertyType tnfStructuredValueDomainPropertyType)
         {
-            Add(new object[]
-                {
-                    tnfStructuredValueDomainPropertyType.Oid,
-                    tnfStructuredValueDomainPropertyType.CatalogueOid,
-                    tnfStructuredValueDomainPropertyType.StructuredValueDomainOid,
-                    tnfStructuredValueDomainPropertyType.ValueDomainOid,
-                    tnfStructuredValueDomainPropertyType.MultiplicityMin,
-                    tnfStructuredValueDomainPropertyType.MultiplicityMax,
-                    tnfStructuredValueDomainPropertyType.Mandatory,
-                    tnfStructuredValueDomainPropertyType.Name,
-                    tnfStructuredValueDomainPropertyType.Description,
-                    tnfStructuredValueDomainPropertyType.ShortName,
-                    tnfStructuredValueDomainPropertyType.ValidFrom?.Date,
-                    tnfStructuredValueDomainPropertyType.ValidTo?.Date
-                });
+			try
+			{
+				Add(new object[]
+					{
+					tnfStructuredValueDomainPropertyType.Oid,
+					tnfStructuredValueDomainPropertyType.CatalogueOid,
+					tnfStructuredValueDomainPropertyType.StructuredValueDomainOid,
+					tnfStructuredValueDomainPropertyType.ValueDomainOid,
+					tnfStructuredValueDomainPropertyType.MultiplicityMin,
+					tnfStructuredValueDomainPropertyType.MultiplicityMax,
+					tnfStructuredValueDomainPropertyType.Mandatory,
+					tnfStructuredValueDomainPropertyType.Name,
+					tnfStructuredValueDomainPropertyType.Description,
+					tnfStructuredValueDomainPropertyType.ShortName,
+					tnfStructuredValueDomainPropertyType.ValidFrom.ToDateString(),
+					tnfStructuredValueDomainPropertyType.ValidTo.ToDateString()
+					});
+			}
+			catch (Exception ex)
+			{
+			    throw new OpenTnfException($"Error when adding structured value domain property type '{tnfStructuredValueDomainPropertyType.Oid}', " +
+			                               $"member of structured value domain '{tnfStructuredValueDomainPropertyType.StructuredValueDomainOid}' " +
+			                               $"in catalogue '{tnfStructuredValueDomainPropertyType.CatalogueOid}': {ex.Message}", ex);
+			}
         }
 
         public TnfStructuredValueDomainPropertyType Get(int oid, int catalogueOid, int structuredValueDomainOid)
@@ -243,8 +253,8 @@ namespace OpenTNF.Library.Model
                     tnfStructuredValueDomainPropertyType.Name,
                     tnfStructuredValueDomainPropertyType.Description,
                     tnfStructuredValueDomainPropertyType.ShortName,
-                    tnfStructuredValueDomainPropertyType.ValidFrom?.Date,
-                    tnfStructuredValueDomainPropertyType.ValidTo?.Date
+                    tnfStructuredValueDomainPropertyType.ValidFrom.ToDateString(),
+                    tnfStructuredValueDomainPropertyType.ValidTo.ToDateString()
                 });
         }
 
@@ -254,7 +264,7 @@ namespace OpenTNF.Library.Model
         }
 
         /// <summary>
-        /// Use this function to receive an oid that is not currently in use for a structured value domain property type in the data catalogue.
+        /// Use this function to receive an oid that is not currently in use for a structured value domain property type in the feature catalogue.
         /// </summary>
         /// <param name="catalogueOid"></param>
         /// <returns></returns>
@@ -280,7 +290,7 @@ namespace OpenTNF.Library.Model
         /// <summary>
         /// Get all structured value domain property types that belong to a certain value domain, including historical and future
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <param name="structuredValueDomainOid">OID for the structured value domain the property belongs to</param>
         /// <returns></returns>
         public List<TnfStructuredValueDomainPropertyType> GetAll(int catalogueOid, int structuredValueDomainOid)
@@ -291,7 +301,7 @@ namespace OpenTNF.Library.Model
         /// <summary>
         /// Get all structured value domain property types that are belong to a certain value domain and valid during a certain time interval
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <param name="structuredValueDomainOid">OID for the structured value domain the property belongs to</param>
         /// <param name="fromDate">Start date of the interval (inclusive)</param>
         /// <param name="toDate">End date of the interval (exclusive)</param>
@@ -342,7 +352,7 @@ namespace OpenTNF.Library.Model
         /// <summary>
         /// Get all structured value domain property types, including historical and future
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <returns></returns>
         public List<TnfStructuredValueDomainPropertyType> GetAll(int catalogueOid)
         {
@@ -352,7 +362,7 @@ namespace OpenTNF.Library.Model
         /// <summary>
         /// Get all structured value domain property types that are valid during a certain time interval
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <param name="fromDate">Start date of the interval (inclusive)</param>
         /// <param name="toDate">End date of the interval (exclusive)</param>
         /// <returns></returns>
@@ -394,7 +404,7 @@ namespace OpenTNF.Library.Model
         /// Get a single structured value domain property type
         /// </summary>
         /// <param name="oid">OID for the structured value domain property type</param>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <returns></returns>
         public TnfStructuredValueDomainPropertyType Get(int oid, int catalogueOid)
         {
@@ -426,14 +436,67 @@ namespace OpenTNF.Library.Model
             tnfStructuredValueDomainPropertyType.Name = reader["name"].FromDbString();
             tnfStructuredValueDomainPropertyType.ShortName = reader["shortname"].FromDbString();
             tnfStructuredValueDomainPropertyType.Description = reader["description"].FromDbString();
-            tnfStructuredValueDomainPropertyType.MultiplicityMin = reader["multiplicity_min"].ToInt32();
-            tnfStructuredValueDomainPropertyType.MultiplicityMax = reader["multiplicity_max"].ToInt32();
+            tnfStructuredValueDomainPropertyType.MultiplicityMin = reader["multiplicity_min"].ToInt();
+            tnfStructuredValueDomainPropertyType.MultiplicityMax = reader["multiplicity_max"].ToInt();
             tnfStructuredValueDomainPropertyType.Mandatory = (bool) reader["mandatory"].ToBoolean();
             tnfStructuredValueDomainPropertyType.ValidFrom = reader["valid_from"].ToDateTime();
             tnfStructuredValueDomainPropertyType.ValidTo = reader["valid_to"].ToDateTime();
             tnfStructuredValueDomainPropertyType.ValueDomainOid = reader["value_domain_oid"].ToInt();
 
             return tnfStructuredValueDomainPropertyType;
+        }
+
+        public void ChangeCatalogueOid(int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText = 
+                    $"UPDATE {TnfStructuredValueDomainPropertyTableName} SET catalogue_oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangeStructuredValueDomainOid(int catalogueOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText = 
+                    $"UPDATE {TnfStructuredValueDomainPropertyTableName} SET structured_value_domain_oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{catalogueOid}' AND structured_value_domain_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangeOid(int catalogueOid, int structuredValueDomainOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText = 
+                    $"UPDATE {TnfStructuredValueDomainPropertyTableName} SET oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{catalogueOid}' AND structured_value_domain_oid = '{structuredValueDomainOid}' AND oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangeValueDomainOid(int catalogueOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {TnfStructuredValueDomainPropertyTableName} SET value_domain_oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{catalogueOid}' AND value_domain_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void DeleteLeftOverStructuredVDpropertyTypesForCatalogue(int catalogueOid)
+        {
+            using (var deleteCommand = Db.Command)
+            {
+                deleteCommand.CommandText = $"DELETE FROM tnf_structured_value_domain_property_type WHERE catalogue_oid = {catalogueOid}";
+                deleteCommand.ExecuteNonQuery();
+            }
         }
     }
 }

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -48,7 +46,7 @@ namespace OpenTNF.Library.Model
 
         public override string ToString()
         {
-            return String.Format("TnfDirectLocationReferenceManager: PropertyOid = {0}, LocationReferenceType = {1}, LocationReference = {2}, SeqNo = {3}",
+            return string.Format("TnfDirectLocationReferenceManager: PropertyOid = {0}, LocationReferenceType = {1}, LocationReference = {2}, SeqNo = {3}",
                 PropertyOid,
                 LocationReferenceType,
                 LocationReference,
@@ -61,22 +59,22 @@ namespace OpenTNF.Library.Model
         private const string PrimaryKey = "property_oid";
         public static string TnfDirectLocationReferenceTableName = "tnf_direct_location_reference";
 
-        public TnfDirectLocationReferenceManager(GeoPackageDatabase db) : base(db, TnfDirectLocationReferenceTableName, GetColumnInfos(),PrimaryKey)
+        public TnfDirectLocationReferenceManager(GeoPackageDatabase db) : base(db, TnfDirectLocationReferenceTableName, GetColumnInfos(), PrimaryKey)
         {
         }
 
         protected override string[] Constraints()
         {
-            return new[]
-                {
-                    String.Format("CONSTRAINT fk_tdlr_po FOREIGN KEY (property_oid) REFERENCES {0}(oid)", TnfPropertyObjectManager.TnfPropertyObjectTableName)
-                };
+            return
+                [
+                    string.Format("CONSTRAINT fk_tdlr_po FOREIGN KEY (property_oid) REFERENCES {0}(oid)", TnfPropertyObjectManager.TnfPropertyObjectTableName)
+                ];
         }
 
         private static ColumnInfo[] GetColumnInfos()
         {
-            return new[]
-            {
+            return
+            [
                 new ColumnInfo
                 {
                     Name = "property_oid",
@@ -101,18 +99,18 @@ namespace OpenTNF.Library.Model
                     SqlType = "INTEGER",
                     DataType = Type.GetType("System.Int32")
                 }
-            };
+            ];
         }
 
         public void Add(TnfDirectLocationReference tnfDirectLocationReference)
         {
-            Add(new object[]
-                {
+            Add(
+                [
                     tnfDirectLocationReference.PropertyOid,
                     tnfDirectLocationReference.LocationReferenceType,
                     tnfDirectLocationReference.LocationReference,
                     tnfDirectLocationReference.SeqNo
-                });
+                ]);
         }
 
         public TnfDirectLocationReference Get(string propertyOid)
@@ -127,18 +125,18 @@ namespace OpenTNF.Library.Model
 
         public int Update(TnfDirectLocationReference tnfDirectLocationReference)
         {
-            return Update(new object[]
-                {
+            return Update(
+                [
                     tnfDirectLocationReference.PropertyOid,
                     tnfDirectLocationReference.LocationReferenceType,
                     tnfDirectLocationReference.LocationReference,
                     tnfDirectLocationReference.SeqNo
-                });
+                ]);
         }
 
         public int Delete(string propertyOid)
         {
-            return Delete(new object[] { propertyOid });
+            return Delete([propertyOid]);
         }
 
         private static TnfDirectLocationReference ReadObject(IDataRecord reader)

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -34,10 +32,10 @@ namespace OpenTNF.Library.Model
                     Identifier == v.Identifier &&
                     Description == v.Description &&
                     LastChange == v.LastChange &&
-                    MinX == v.MinX &&
-                    MinY == v.MinY &&
-                    MaxX == v.MaxX &&
-                    MaxY == v.MaxY &&
+                    Equals(MinX, v.MinX) &&
+                    Equals(MinY, v.MinY) &&
+                    Equals(MaxX, v.MaxX) &&
+                    Equals(MaxY, v.MaxY) &&
                     SrsId == v.SrsId)
                 {
                     return true;
@@ -82,12 +80,23 @@ namespace OpenTNF.Library.Model
     public class GpkgContentsManager : TableManager, IGpkgContentsManager
     {
         private const string PrimaryKey = "table_name";
-        public static string GpkgContentsTableName = "gpkg_contents";
+        public const string GpkgContentsTableName = "gpkg_contents";
+
+        public static string TableNameFieldName => "table_name";
+        public static string MinXFieldName => "min_x";
+        public static string MaxXFieldName => "max_x";
+        public static string MinYFieldName => "min_y";
+        public static string MaxYFieldName => "max_y";
+
+        public static string DataTypeFeatures => "features";
+        public static string DataTypeAttributes => "attributes";
 
         public GpkgContentsManager(GeoPackageDatabase db)
             : base(db, GpkgContentsTableName, GetColumnInfos(), PrimaryKey)
         {
         }
+
+        protected override bool ShallCreateGpkgContentsEntry => false;
 
         protected override string[] Constraints()
         {
@@ -173,7 +182,7 @@ namespace OpenTNF.Library.Model
                     gpkgContents.DataType,
                     gpkgContents.Identifier,
                     gpkgContents.Description,
-                    gpkgContents.LastChange?.ToUniversalTime(),
+                    gpkgContents.LastChange?.ToDateTimeString(),
                     gpkgContents.MinX,
                     gpkgContents.MinY,
                     gpkgContents.MaxX,
@@ -200,7 +209,7 @@ namespace OpenTNF.Library.Model
                     gpkgContents.DataType,
                     gpkgContents.Identifier,
                     gpkgContents.Description,
-                    gpkgContents.LastChange?.ToUniversalTime(),
+                    gpkgContents.LastChange?.ToDateTimeString(),
                     gpkgContents.MinX,
                     gpkgContents.MinY,
                     gpkgContents.MaxX,
@@ -209,18 +218,18 @@ namespace OpenTNF.Library.Model
                 });
         }
 
-        public void UpdateSrid(int srid)
+        public void UpdateSrsId(int srsId)
         {
             using (var command = Db.Command)
             {
-                command.CommandText = string.Format("UPDATE {0} SET srs_id = {1}", GpkgContentsTableName, srid);
+                command.CommandText = string.Format("UPDATE {0} SET srs_id = {1}", GpkgContentsTableName, srsId);
                 command.ExecuteScalar();
             }
         }
 
         public int Delete(string tableName)
         {
-            return Delete(new object[] {tableName});
+            return Delete(new object[] { tableName });
         }
 
         private static GpkgContents ReadObject(IDataRecord reader)

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -61,11 +59,13 @@ namespace OpenTNF.Library.Model
     public class GpkgGeometryColumnsManager : TableManager
     {
         private const string PrimaryKey = "table_name, column_name";
-        public static string GpkgGeometryColumnsTableName = "gpkg_geometry_columns";
+        public const string GpkgGeometryColumnsTableName = "gpkg_geometry_columns";
 
-        public GpkgGeometryColumnsManager(GeoPackageDatabase db) : base(db, GpkgGeometryColumnsTableName, GetColumnInfos(),PrimaryKey)
+        public GpkgGeometryColumnsManager(GeoPackageDatabase db) : base(db, GpkgGeometryColumnsTableName, GetColumnInfos(), PrimaryKey)
         {
         }
+
+        protected override bool ShallCreateGpkgContentsEntry => false;
 
         protected override string[] Constraints()
         {
@@ -158,11 +158,11 @@ namespace OpenTNF.Library.Model
                 });
         }
 
-        public void UpdateSrid(int srid)
+        public void UpdateSrsId(int crs)
         {
             using (var command = Db.Command)
             {
-                command.CommandText = string.Format("UPDATE {0} SET srs_id = {1}", GpkgGeometryColumnsTableName, srid);
+                command.CommandText = string.Format("UPDATE {0} SET srs_id = {1}", GpkgGeometryColumnsTableName, crs);
                 command.ExecuteScalar();
             }
         }

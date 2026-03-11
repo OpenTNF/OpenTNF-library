@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -25,11 +23,9 @@ namespace OpenTNF.Library.Model
         string AttributeFormat { get; }
         bool? OrderedNetworkReferences { get; }
         string NetworkReferenceClass { get; }
-        int? BaseCatalogueOid { get; }
-        int? BasePropertyObjectTypeOid { get; }
-        bool? IsDerived { get; }
     }
 
+    [Serializable]
     public class TnfPropertyObjectType : ITnfPropertyObjectType
     {
         public int Oid { get; set; }
@@ -43,17 +39,14 @@ namespace OpenTNF.Library.Model
         public bool? CanOverlap { get; set; }
         public bool? HasHistory { get; set; }
         public bool? HasLaneCode { get; set; }
-        public int? NetworkReferenceMin  { get; set; }
-        public int? NetworkReferenceMax  { get; set; }
+        public int? NetworkReferenceMin { get; set; }
+        public int? NetworkReferenceMax { get; set; }
         public DateTime? ValidFrom { get; set; }
         public DateTime? ValidTo { get; set; }
         public string ShortName { get; set; }
         public string AttributeFormat { get; set; }
         public bool? OrderedNetworkReferences { get; set; }
         public string NetworkReferenceClass { get; set; }
-        public int? BaseCatalogueOid { get; set; }
-        public int? BasePropertyObjectTypeOid { get; set; }
-        public bool? IsDerived { get; set; }
 
         public override bool Equals(object obj)
         {
@@ -79,10 +72,7 @@ namespace OpenTNF.Library.Model
                     ShortName == p.ShortName &&
                     AttributeFormat == p.AttributeFormat &&
                     OrderedNetworkReferences == p.OrderedNetworkReferences &&
-                    NetworkReferenceClass == p.NetworkReferenceClass &&
-                    BaseCatalogueOid == p.BaseCatalogueOid &&
-                    BasePropertyObjectTypeOid == p.BasePropertyObjectTypeOid &&
-                    IsDerived == p.IsDerived)
+                    NetworkReferenceClass == p.NetworkReferenceClass)
                 {
                     return true;
                 }
@@ -112,22 +102,17 @@ namespace OpenTNF.Library.Model
                 ShortName,
                 AttributeFormat,
                 OrderedNetworkReferences,
-                NetworkReferenceClass,
-                BaseCatalogueOid,
-                BasePropertyObjectTypeOid,
-                IsDerived);
+                NetworkReferenceClass);
         }
 
         public override string ToString()
         {
             return
                 $"TnfPropertyObjectType: Oid = {Oid}, CatalogueOid = {CatalogueOid}, Name = {Name}, Description = {Description}, " +
-                $"BaseCatalogueOid = {BaseCatalogueOid}, BasePropertyObjectTypeOid={BasePropertyObjectTypeOid} " +
                 $"NetworkReferenceType = {NetworkReferenceType}, HasSide = {HasSide}, HasDirection = {HasDirection}, MustCover = {MustCover}, " +
                 $"CanOverlap = {CanOverlap}, HasHistory = {HasHistory}, HasLaneCode = {HasLaneCode}, NetworkReferenceMin = {NetworkReferenceMin}, " +
                 $"NetworkReferenceMax = {NetworkReferenceMax}, ValidFrom = {ValidFrom}, ValidTo = {ValidTo}, ShortName = {ShortName}, " +
-                $"AttributeFormat = {AttributeFormat}, OrderedNetworkReferences = {OrderedNetworkReferences}, NetworkReferenceClass = {NetworkReferenceClass}, " +
-                $"IsDerived = {IsDerived}";
+                $"AttributeFormat = {AttributeFormat}, OrderedNetworkReferences = {OrderedNetworkReferences}, NetworkReferenceClass = {NetworkReferenceClass}";
         }
         public static int UnlimitedNetworkReferencesMax = -1;
     }
@@ -135,26 +120,24 @@ namespace OpenTNF.Library.Model
     public class TnfPropertyObjectTypeManager : TableManager
     {
         private const string PrimaryKey = "oid, catalogue_oid";
-        public static string TnfPropertyObjectTypeTableName = "tnf_property_object_type";
+        public const string TnfPropertyObjectTypeTableName = "tnf_property_object_type";
 
-        public TnfPropertyObjectTypeManager(GeoPackageDatabase db) : base(db, TnfPropertyObjectTypeTableName, GetColumnInfos(),PrimaryKey)
+        public TnfPropertyObjectTypeManager(GeoPackageDatabase db) : base(db, TnfPropertyObjectTypeTableName, GetColumnInfos(), PrimaryKey)
         {
         }
 
         protected override string[] Constraints()
         {
-            return new[]
-                {
+            return
+                [
                     String.Format("CONSTRAINT fk_tpot_co FOREIGN KEY (catalogue_oid) REFERENCES {0}(oid)",TnfCatalogueManager.TnfCatalogueTableName),
                     "CONSTRAINT check_tpot_network_references CHECK (network_references_min >= 0 AND network_references_max >= -1 )"
-
-                    // ToDo: Add constraints for base types
-                };
+                ];
         }
 
         private static ColumnInfo[] GetColumnInfos()
         {
-            return new[]
+            var result = new List<ColumnInfo>
             {
                 new ColumnInfo
                 {
@@ -237,13 +220,13 @@ namespace OpenTNF.Library.Model
                 new ColumnInfo
                 {
                     Name = "valid_from",
-                    SqlType = "DATETIME",
+                    SqlType = "DATE",
                     DataType = Type.GetType("System.DateTime")
                 },
                 new ColumnInfo
                 {
                     Name = "valid_to",
-                    SqlType = "DATETIME",
+                    SqlType = "DATE",
                     DataType = Type.GetType("System.DateTime")
                 },
                 new ColumnInfo
@@ -262,68 +245,54 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "ordered_network_references",
                     SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Boolean")
+                    DataType = Type.GetType("System.Boolean"),
                 },
                 new ColumnInfo
                 {
                     Name = "network_reference_class",
-                    SqlType = "STRING",
-                    DataType = Type.GetType("System.String")
-                },
-                new ColumnInfo
-                {
-                    Name = "base_catalogue_oid",
-                    SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Int32")
-                },
-                new ColumnInfo
-                {
-                    Name = "base_property_object_type_oid",
-                    SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Int32")
-                },
-                new ColumnInfo
-                {
-                    Name = "is_derived",
-                    SqlType = "INTEGER",
-                    DataType = Type.GetType("System.Boolean"),
-                    HandleMissing = true
+                    SqlType = "TEXT",
+                    DataType = Type.GetType("System.String"),
                 }
             };
+
+            return result.ToArray();
         }
 
         public void Add(TnfPropertyObjectType tnfPropertyObjectType)
         {
-            Add(new object[]
-                {
-                    tnfPropertyObjectType.Oid,
-                    tnfPropertyObjectType.CatalogueOid,
-                    tnfPropertyObjectType.Name,
-                    tnfPropertyObjectType.Description,
-                    tnfPropertyObjectType.NetworkReferenceType,
-                    tnfPropertyObjectType.HasSide,
-                    tnfPropertyObjectType.HasDirection,
-                    tnfPropertyObjectType.MustCover,
-                    tnfPropertyObjectType.CanOverlap,
-                    tnfPropertyObjectType.HasHistory,
-                    tnfPropertyObjectType.HasLaneCode,
-                    tnfPropertyObjectType.NetworkReferenceMin,
-                    tnfPropertyObjectType.NetworkReferenceMax,
-                    tnfPropertyObjectType.ValidFrom?.Date,
-                    tnfPropertyObjectType.ValidTo?.Date,
-                    tnfPropertyObjectType.ShortName,
-                    tnfPropertyObjectType.AttributeFormat,
-                    tnfPropertyObjectType.OrderedNetworkReferences,
-                    tnfPropertyObjectType.NetworkReferenceClass,
-                    tnfPropertyObjectType.BaseCatalogueOid,
-                    tnfPropertyObjectType.BasePropertyObjectTypeOid,
-                    tnfPropertyObjectType.IsDerived
-                });
+            Add(GetColumnValues(tnfPropertyObjectType));
+        }
+
+        private object[] GetColumnValues(TnfPropertyObjectType tnfPropertyObjectType)
+        {
+            var result = new List<object>()
+            {
+                tnfPropertyObjectType.Oid,
+                tnfPropertyObjectType.CatalogueOid,
+                tnfPropertyObjectType.Name,
+                tnfPropertyObjectType.Description,
+                tnfPropertyObjectType.NetworkReferenceType,
+                tnfPropertyObjectType.HasSide,
+                tnfPropertyObjectType.HasDirection,
+                tnfPropertyObjectType.MustCover,
+                tnfPropertyObjectType.CanOverlap,
+                tnfPropertyObjectType.HasHistory,
+                tnfPropertyObjectType.HasLaneCode,
+                tnfPropertyObjectType.NetworkReferenceMin,
+                tnfPropertyObjectType.NetworkReferenceMax,
+                tnfPropertyObjectType.ValidFrom.ToDateString(),
+                tnfPropertyObjectType.ValidTo.ToDateString(),
+                tnfPropertyObjectType.ShortName,
+                tnfPropertyObjectType.AttributeFormat,
+                tnfPropertyObjectType.OrderedNetworkReferences,
+                tnfPropertyObjectType.NetworkReferenceClass
+            };
+            return result.ToArray();
         }
 
         public TnfPropertyObjectType Get(int oid, int catalogueOid)
         {
-            return Get(ReadObject, new object[] {oid, catalogueOid});
+            return Get(ReadObject, new object[] { oid, catalogueOid });
         }
 
         public List<TnfPropertyObjectType> Get(int maxResults)
@@ -333,36 +302,12 @@ namespace OpenTNF.Library.Model
 
         public int Update(TnfPropertyObjectType tnfPropertyObjectType)
         {
-            return Update(new object[]
-                {
-                    tnfPropertyObjectType.Oid,
-                    tnfPropertyObjectType.CatalogueOid,
-                    tnfPropertyObjectType.Name,
-                    tnfPropertyObjectType.Description,
-                    tnfPropertyObjectType.NetworkReferenceType,
-                    tnfPropertyObjectType.HasSide,
-                    tnfPropertyObjectType.HasDirection,
-                    tnfPropertyObjectType.MustCover,
-                    tnfPropertyObjectType.CanOverlap,
-                    tnfPropertyObjectType.HasHistory,
-                    tnfPropertyObjectType.HasLaneCode,
-                    tnfPropertyObjectType.NetworkReferenceMin,
-                    tnfPropertyObjectType.NetworkReferenceMax,
-                    tnfPropertyObjectType.ValidFrom?.Date,
-                    tnfPropertyObjectType.ValidTo?.Date,
-                    tnfPropertyObjectType.ShortName,
-                    tnfPropertyObjectType.AttributeFormat,
-                    tnfPropertyObjectType.OrderedNetworkReferences,
-                    tnfPropertyObjectType.NetworkReferenceClass,
-                    tnfPropertyObjectType.BaseCatalogueOid,
-                    tnfPropertyObjectType.BasePropertyObjectTypeOid,
-                    tnfPropertyObjectType.IsDerived
-                });
+            return Update(GetColumnValues(tnfPropertyObjectType));
         }
 
         public int Delete(int oid, int catalogueOid)
         {
-            return Delete(new object[] { oid, catalogueOid });
+            return Delete([oid, catalogueOid]);
         }
 
         private static TnfPropertyObjectType ReadObject(IDataRecord reader)
@@ -388,16 +333,13 @@ namespace OpenTNF.Library.Model
             tnfPropertyObjectType.AttributeFormat = reader["attribute_format"].FromDbString();
             tnfPropertyObjectType.OrderedNetworkReferences = reader["ordered_network_references"].ToBoolean();
             tnfPropertyObjectType.NetworkReferenceClass = reader["network_reference_class"].FromDbString();
-            tnfPropertyObjectType.BaseCatalogueOid = reader["base_catalogue_oid"].ToInt32();
-            tnfPropertyObjectType.BasePropertyObjectTypeOid = reader["base_property_object_type_oid"].ToInt32();
-            tnfPropertyObjectType.IsDerived = reader.ReadIfExists("is_derived").ToBoolean() ?? false;
 
             return tnfPropertyObjectType;
         }
 
 
         /// <summary>
-        /// Use this function to receive an oid that is not currently in use for a property object type in the data catalogue.
+        /// Use this function to receive an oid that is not currently in use for a property object type in the feature catalogue.
         /// </summary>
         /// <param name="catalogueOid"></param>
         /// <returns></returns>
@@ -410,9 +352,9 @@ namespace OpenTNF.Library.Model
 
 
         /// <summary>
-        /// Get all property object types in a data catalogue, including historical and future.
+        /// Get all property object types in a feature catalogue, including historical and future.
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue.</param>
+        /// <param name="catalogueOid">OID for the feature catalogue.</param>
         /// <returns></returns>
         public List<TnfPropertyObjectType> GetAll(int catalogueOid)
         {
@@ -420,9 +362,9 @@ namespace OpenTNF.Library.Model
         }
 
         /// <summary>
-        /// Get all property object types in a data catalogue that are valid in a certain time interval.
+        /// Get all property object types in a feature catalogue that are valid in a certain time interval.
         /// </summary>
-        /// <param name="catalogueOid">OID for the data catalogue</param>
+        /// <param name="catalogueOid">OID for the feature catalogue</param>
         /// <param name="fromDate">Start date of the interval (inclusive)</param>
         /// <param name="toDate">End date of the interval (exclusive)</param>
         /// <returns></returns>
@@ -454,6 +396,36 @@ namespace OpenTNF.Library.Model
             }
 
             return propertyObjectTypes;
+        }
+
+        public void ChangeCatalogueOid(int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {TnfPropertyObjectTypeTableName} SET catalogue_oid = '{newOid}' WHERE catalogue_oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void ChangeOid(int catalogueOid, int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText =
+                    $"UPDATE {TnfPropertyObjectTypeTableName} SET oid = '{newOid}' " +
+                    $"WHERE catalogue_oid = '{catalogueOid}' AND oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void DeleteLeftOverPropertyObjectTypesForCatalogue(int catalogueOid)
+        {
+            using (var deleteCommand = Db.Command)
+            {
+                deleteCommand.CommandText = $"DELETE FROM tnf_property_object WHERE catalogue_oid = {catalogueOid}";
+                deleteCommand.ExecuteNonQuery();
+            }
         }
     }
 }

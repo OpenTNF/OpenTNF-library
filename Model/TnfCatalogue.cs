@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Globalization;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -14,6 +11,7 @@ namespace OpenTNF.Library.Model
         string DefinitionSource { get; }
     }
 
+    [Serializable]
     public class TnfCatalogue : ITnfCatalogue
     {
         public int Oid { get; set; }
@@ -21,9 +19,9 @@ namespace OpenTNF.Library.Model
         public string Version { get; set; }
         public string Description { get; set; }
         public string DefinitionSource { get; set; }
-        
 
-      public override bool Equals(object obj)
+
+        public override bool Equals(object obj)
         {
             bool retVal = false;
 
@@ -67,7 +65,7 @@ namespace OpenTNF.Library.Model
 
     public class TnfCatalogueManager : TableManager
     {
-        public static string TnfCatalogueTableName = "tnf_catalogue";
+        public const string TnfCatalogueTableName = "tnf_catalogue";
 
         public TnfCatalogueManager(GeoPackageDatabase db) : base(db, TnfCatalogueTableName, GetColumnInfos())
         {
@@ -99,14 +97,14 @@ namespace OpenTNF.Library.Model
                 {
                     Name = "definition_source",
                     SqlType = "TEXT",
-                    DataType = Type.GetType("System.String")
+                    DataType = Type.GetType("System.String"),
                 },
                 new ColumnInfo
                 {
                     Name = "description",
                     SqlType = "TEXT",
                     DataType = Type.GetType("System.String"),
-                    HandleMissing = true
+                    Requirement = ColumnRequirement.OptionalReadOnly,
                 }
             };
         }
@@ -157,10 +155,19 @@ namespace OpenTNF.Library.Model
             tnfCatalogue.Oid = reader["oid"].ToInt();
             tnfCatalogue.Name = reader["name"].FromDbString();
             tnfCatalogue.Version = reader["version"].FromDbString();
-            tnfCatalogue.DefinitionSource = reader["definition_source"].FromDbString();
+            tnfCatalogue.DefinitionSource = reader.ReadIfExists("definition_source").FromDbString();
             tnfCatalogue.Description = reader.ReadIfExists("description").FromDbString();
 
             return tnfCatalogue;
+        }
+
+        public void ChangeOid(int oldOid, int newOid)
+        {
+            using (var command = Db.Command)
+            {
+                command.CommandText = $"UPDATE {TnfCatalogueTableName} SET oid = '{newOid}' WHERE oid = '{oldOid}'";
+                command.ExecuteNonQuery();
+            }
         }
     }
 }

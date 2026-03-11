@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 
 namespace OpenTNF.Library.Model
 {
@@ -8,7 +6,7 @@ namespace OpenTNF.Library.Model
     {
         string MessageOid { get; }
         IdentityCode Type { get; }
-        string Value { get;  }
+        string Value { get; }
     }
 
     public class TnfToDoListDetails : ITnfToDoListDetails
@@ -21,9 +19,9 @@ namespace OpenTNF.Library.Model
 
     public class TnfToDoListDetailsManager : TableManager
     {
-        public static string TnfToDoListDetailsTableName = "tnf_todo_list_details";
+        public const string TnfToDoListDetailsTableName = "tnf_todo_list_details";
 
-        public TnfToDoListDetailsManager(GeoPackageDatabase db) : base(db, TnfToDoListDetailsTableName, GetColumnInfos(),null)
+        public TnfToDoListDetailsManager(GeoPackageDatabase db) : base(db, TnfToDoListDetailsTableName, GetColumnInfos(), null)
         {
         }
 
@@ -31,7 +29,7 @@ namespace OpenTNF.Library.Model
         {
             return new[]
             {
-                String.Format("CONSTRAINT fk_ttdld_tdlmo FOREIGN KEY (message_oid) REFERENCES {0} (oid)",
+                string.Format("CONSTRAINT fk_ttdld_tdlmo FOREIGN KEY (message_oid) REFERENCES {0} (oid)",
                     TnfToDoListMessageManager.TnfToDoListMessageTableName)
             };
         }
@@ -45,7 +43,7 @@ namespace OpenTNF.Library.Model
                     tnfToDoListMessage.Value
                 });
         }
-        
+
         private static ColumnInfo[] GetColumnInfos()
         {
             return new[]
@@ -74,7 +72,7 @@ namespace OpenTNF.Library.Model
         public List<TnfToDoListDetails> GetAll(string messageOid)
         {
             var tnfToDoListDetails = new List<TnfToDoListDetails>();
-            string commandText = String.Format("SELECT * FROM {0} WHERE message_oid = {1}", TnfToDoListDetailsTableName, messageOid);
+            string commandText = string.Format("SELECT * FROM {0} WHERE message_oid = {1}", TnfToDoListDetailsTableName, messageOid);
 
             using (IDataReader idataReader = Db.ExecuteReader(commandText))
             {
@@ -147,8 +145,6 @@ namespace OpenTNF.Library.Model
                     return IdentityCode.DETAILS;
                 case "POSITION":
                     return IdentityCode.POSITION;
-                case "NETWORKCATALOGUE_NAME_ELEMENT_OID":
-                    return IdentityCode.NETWORK_ELEMENT_OID;
                 case "CATALOGUE_NAME":
                     return IdentityCode.CATALOGUE_NAME;
                 case "VALID_PERIOD":
@@ -157,10 +153,26 @@ namespace OpenTNF.Library.Model
                     return IdentityCode.START_MEASURE;
                 case "END_MEASURE":
                     return IdentityCode.END_MEASURE;
+                case "MEASURE":
+                    return IdentityCode.MEASURE;
                 case "MIN_LENGTH":
                     return IdentityCode.MIN_LENGTH;
+                case "TOTAL_LENGTH":
+                    return IdentityCode.TOTAL_LENGTH;
                 case "NETWORK_REFERENCE_TYPE":
                     return IdentityCode.NETWORK_REFERENCE_TYPE;
+                case "VALUE_DOMAIN_OID":
+                    return IdentityCode.VALUE_DOMAIN_OID;
+                case "MESSAGE_ID":
+                    return IdentityCode.MESSAGE_ID;
+                case "SUMMARY":
+                    return IdentityCode.SUMMARY;
+                case "OID_OBJECT_TYPE":
+                    return IdentityCode.OID_OBJECT_TYPE;
+                case "VALID_FROM":
+                    return IdentityCode.VALID_FROM;
+                case "VALID_TO":
+                    return IdentityCode.VALID_TO;
                 default:
                     return IdentityCode.Undefined;
             }
@@ -181,12 +193,34 @@ namespace OpenTNF.Library.Model
         DETAILS,                           /* A more detailed description */
         POSITION,                          /* For location of error wkt point. */
         CATALOGUE_NAME,                    /* catalogue name */
-        VALID_PERIOD,                      /* Valid persiod */
+        VALID_PERIOD,                      /* Valid period */
         START_MEASURE,                     /* start measure */
         END_MEASURE,                       /* end measure */
+        MEASURE,                           /* measure */
         MIN_LENGTH,                        /* Minimum length */
         TOTAL_LENGTH,                      /* Total length */
         NETWORK_REFERENCE_TYPE,            /* What network reference type */
-        VALUE_DOMAIN_OID                   /* ValueDomainId */
+        VALUE_DOMAIN_OID,                  /* ValueDomainId */
+        MESSAGE_ID,                        /* Unique ID for this type of message */
+        SUMMARY,                           /* Short message describing the validation */
+        OID_OBJECT_TYPE,                   /* OID Object type: LINK_SEQUENCE, NODE or PROPERTY_OBJECT */
+        VALID_FROM,                        /* Valid from */
+        VALID_TO,                          /* Valid from */
+    }
+
+    /// <summary>
+    /// Static values for IdentityCode keys.
+    /// </summary>
+    public class IdentityCodeValues
+    {
+        /// <summary>
+        /// Allowed values for <see cref="IdentityCode.OID_OBJECT_TYPE"/>.
+        /// </summary>
+        public static class OID_OBJECT_TYPE
+        {
+            public const string LINK_SEQUENCE = "LINK_SEQUENCE";
+            public const string NODE = "NODE";
+            public const string PROPERTY_OBJECT = "PROPERTY_OBJECT";
+        }
     }
 }

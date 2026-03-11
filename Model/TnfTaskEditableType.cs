@@ -21,7 +21,10 @@ namespace OpenTNF.Library.Model
 
     public class TnfTaskEditableTypeManager : TableManager
     {
-        public static string TnfTaskEditableTypeTableName = "tnf_task_editable_type";
+        public const string TnfTaskEditableTypeTableName = "tnf_task_editable_type";
+        public static string TaskOidFieldName = "task_oid";
+        public static string CatalogueOidFieldName = "catalogue_oid";
+        public static string PropertyObjectTypeOidFieldName = "property_object_type_oid";
 
         public TnfTaskEditableTypeManager(GeoPackageDatabase db) : base(db, TnfTaskEditableTypeTableName, GetColumnInfos(),"task_oid,catalogue_oid,property_object_type_oid")
         {
