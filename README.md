@@ -61,12 +61,16 @@ The tables `tnf_task` and `tnf_task_editable_type` tables are included, and can 
 ### Areas
 The table `tnf_area` can be used to store areas related to the dataset in the file.
 
-### Metadata Keys
-The following additional metadata keys are defined:
+### Nodes
+Added columns `valid_from` and `valid_to` can be used for calculated node validity.
 
-| Metadata key | Description |
-| --- | --- |
-| GT_COORD_SYSTEM_ID | GTrans name of the coordinate system used for the file. |
+### Valid value short name
+Added column `enum_short_name` in `tnf_valid_value` can contain a short name of an enumerable valid value.
+
+### Property object property type
+
+Support for feature catalogues that use _untyped associations_, which means that an association type may specify that it can reference a feature of any property object type in the catalogue.
+An untyped association is indicated in the `TNF_PROPERTY_OBJECT_PROPERTY_TYPE` table by setting `ASSOC_PROPERTY_OBJECT_TYPE_OID = -1`.
 
 ## Examples
 ### Open an existing OpenTNF file
