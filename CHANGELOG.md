@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Properties/AssemblyInfo.cs` (metadata moved to `.csproj`)
 - Legacy assembly attributes (`ComVisible`, `Guid`, `AssemblyConfiguration`)
 - Support for inheritance in TnfPropertyObjectType (BaseCatalogueOid, BasePropertyObjectTypeOid and IsDerived properties)
+- Metadata key `GT_COORD_SYSTEM_ID`
 
 ### Fixed
 
